@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.8)
 set(cupla_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cupla CACHE PATH "Path to CUPLA (by default: submodule)")
 
 # Location of TBB
-set(TBB_BASE "/cvmfs/cms.cern.ch/slc7_amd64_gcc820/external/tbb/2019_U8")
+set(TBB_DIR "/cvmfs/cms.cern.ch/slc7_amd64_gcc820/external/tbb/2020_U2-ghbfee/cmake/TBB/")
 
 project(
   CLUE
@@ -51,37 +51,13 @@ if(Boost_FOUND)
   message(STATUS "Boost package found!")
 endif()
 
-#find_package(TBB REQUIRED)
-#if(TBB_FOUND)
-#  message(STATUS "TBB package found!")
-#endif()
-
-#find_package(EDM4HEP)
-#if(EDM4HEP_FOUND)
-#  message(STATUS "EDM4HEP package found!")
-#endif()
-#find_package(DD4hep)
-#if(DD4HEP_FOUND)
-#  message(STATUS "DD4HEP package found!")
-#endif()
-#
-#find_package(k4FWCore REQUIRED)
-#if(k4FWCore_FOUND)
-#  message(STATUS "k4FWCore package found!")
-#endif()
-#find_package(Gaudi REQUIRED)
-#if(Gaudi_FOUND)
-#  message(STATUS "Gaudi package found!")
-#endif()
-
-#gaudi_install(PYTHON)
-#gaudi_install(SCRIPTS)
+find_package(TBB REQUIRED)
+if(TBB_FOUND)
+  message(STATUS "TBB package found!")
+endif()
 
 add_subdirectory(clueLib)
 add_subdirectory(src)
-
-#Disable tests when ready
-#include(CTest)
 
 message(STATUS "Finished!")
 

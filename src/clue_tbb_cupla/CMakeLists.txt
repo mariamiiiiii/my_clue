@@ -2,17 +2,18 @@
 #       its corresponding TBB one built using CUPLA. Which one to use must be
 #       selected at runtime via a flag (misleadingly enough called useGPU in
 #       the help text).
-#set(tbb_lib -ltbb)
-#
-#set_source_files_properties(${PROJECT_SOURCE_DIR}/src/main.cc PROPERTIES LANGUAGE CXX)
-#add_executable(mainCuplaCPUTBB ${PROJECT_SOURCE_DIR}/src/main.cc)
-#
-#target_compile_options(mainCuplaCPUTBB PRIVATE -DUSE_CUPLA -DFOR_TBB ${tbb_lib})
-#target_link_libraries(mainCuplaCPUTBB PRIVATE CLUE TBB::tbb)
-#
-#target_include_directories(mainCuplaCPUTBB PUBLIC
-#  $<BUILD_INTERFACE:${cupla_DIR}/include>
-#  PUBLIC
-#  $<BUILD_INTERFACE:${cupla_DIR}/alpaka/include>
-#  PUBLIC
-#  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
+
+set(tbb_lib -ltbb)
+
+set_source_files_properties(${PROJECT_SOURCE_DIR}/src/main.cc PROPERTIES LANGUAGE CXX)
+add_executable(mainCuplaCPUTBB ${PROJECT_SOURCE_DIR}/src/main.cc)
+
+target_compile_options(mainCuplaCPUTBB PRIVATE -DUSE_CUPLA -DFOR_TBB ${tbb_lib})
+target_link_libraries(mainCuplaCPUTBB PRIVATE CLUE TBB::tbb)
+
+target_include_directories(mainCuplaCPUTBB PUBLIC
+  $<BUILD_INTERFACE:${cupla_DIR}/include>
+  PUBLIC
+  $<BUILD_INTERFACE:${cupla_DIR}/alpaka/include>
+  PUBLIC
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)

@@ -1,6 +1,7 @@
 # mainCuplaCUDA: this will build the native C++ implementation of CLUE and its
 #       corresponding CUDA one built using CUPLA. Which one to use must be
 #       selected at runtime via a flag.
+
 if(CMAKE_CUDA_COMPILER)
   set_source_files_properties(${PROJECT_SOURCE_DIR}/src/main.cc PROPERTIES LANGUAGE CUDA)
   add_executable(mainCuplaCUDA ${PROJECT_SOURCE_DIR}/src/main.cc)
