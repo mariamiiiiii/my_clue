@@ -12,6 +12,47 @@
 #endif
 #endif
 
+template <typename T>
+std::string to_string_with_precision(const T a_value, const int n = 6)
+{
+    std::ostringstream out;
+    out.precision(n);
+    out << std::fixed << a_value;
+    return out.str();
+}
+
+bool replace(std::string& str, const std::string& from, const std::string& to) {
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return false;
+    str.replace(start_pos, from.length(), to);
+    return true;
+}
+
+std::string create_outputfileName(std::string inputFileName, float dc,
+                                 float rhoc, float outlierDeltaFactor,
+                                 bool useParallel){
+  std::string underscore = "_", suffix = "";
+  suffix.append(underscore);
+  suffix.append(to_string_with_precision(dc,2));
+  suffix.append(underscore);
+  suffix.append(to_string_with_precision(rhoc,2));
+  suffix.append(underscore);
+  suffix.append(to_string_with_precision(outlierDeltaFactor,2));
+  suffix.append(".csv");
+
+  std::string outputFileName = inputFileName;
+  replace(outputFileName, "input", "output");
+  replace(outputFileName, ".csv", suffix);
+  return outputFileName;
+}
+
+
+
+//std::string string("hello $name");
+//replace(string, "$name", "Somename");
+
+
 
 void mainRun( std::string inputFileName, std::string outputFileName,
               float dc, float rhoc, float outlierDeltaFactor,
@@ -48,6 +89,7 @@ void mainRun( std::string inputFileName, std::string outputFileName,
   std::cout << "Start to run CLUE algorithm" << std::endl;
   if (useGPU) {
 #ifndef USE_CUPLA
+    std::cout << "Using CLUEAlgoGPU: " << std::endl;
     CLUEAlgoGPU clueAlgo(dc, rhoc, outlierDeltaFactor,
 			 verbose);
     for (unsigned r = 0; r<repeats; r++){
@@ -65,6 +107,7 @@ void mainRun( std::string inputFileName, std::string outputFileName,
     clueAlgo.verboseResults(outputFileName, -1);
 
 #else
+    std::cout << "Using CLUEAlgoCupla: " << std::endl;
     CLUEAlgoCupla<cupla::Acc> clueAlgo(dc, rhoc, outlierDeltaFactor,
 				       verbose);
   for (int r = 0; r<repeats; r++){
@@ -84,6 +127,7 @@ void mainRun( std::string inputFileName, std::string outputFileName,
 
 
   } else {
+    std::cout << "Using CLUEAlgo: " << std::endl;
     CLUEAlgo clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
     for (int r = 0; r<repeats; r++){
       clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
@@ -117,6 +161,7 @@ int main(int argc, char *argv[]) {
 
   int TBBNumberOfThread = 1;
 
+  std::string inputFileName = argv[1];
   if (argc == 8 || argc == 9) {
     dc = std::stof(argv[2]);
     rhoc = std::stof(argv[3]);
@@ -146,23 +191,10 @@ int main(int argc, char *argv[]) {
   //////////////////////////////
   // MARK -- set input and output files
   //////////////////////////////
-  std::string underscore="_", suffix = ".csv";
-
-  std::string inputFileName = "data/input/";
-  inputFileName.append(argv[1]);
-  inputFileName.append(suffix);
   std::cout << "Input file: " << inputFileName << std::endl;
 
 
-  std::string outputFileName = "data/output/";
-  outputFileName.append(argv[1]);
-  outputFileName.append(underscore);
-  outputFileName.append(std::to_string(int(dc)));
-  outputFileName.append(underscore);
-  outputFileName.append(std::to_string(int(rhoc)));
-  outputFileName.append(underscore);
-  outputFileName.append(std::to_string(int(outlierDeltaFactor)));
-  outputFileName.append(suffix);
+  std::string outputFileName = create_outputfileName(inputFileName, dc, rhoc, outlierDeltaFactor, useGPU);
   std::cout << "Output file: " << outputFileName << std::endl;
 
 
