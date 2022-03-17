@@ -47,13 +47,6 @@ std::string create_outputfileName(std::string inputFileName, float dc,
   return outputFileName;
 }
 
-
-
-//std::string string("hello $name");
-//replace(string, "$name", "Somename");
-
-
-
 void mainRun( std::string inputFileName, std::string outputFileName,
               float dc, float rhoc, float outlierDeltaFactor,
               bool useGPU, int repeats, bool verbose  ) {
