@@ -1,21 +1,21 @@
-set(CMAKE_CXX_FLAGS "-fPIC")
-
 ## Make an automatic library - will be static or dynamic based on user setting
-add_library(CLUE src/CLUEAlgo.cc)
+add_library(CLUELib src/CLUEAlgo.cc)
+
+set_target_properties(CLUELib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # We need this directory, and users of our library will need it too
-target_include_directories(CLUE PUBLIC
+target_include_directories(CLUELib PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/clueLib/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
-#install(TARGETS CLUE ${INSTALL_LIBRARIES}
-#  EXPORT CLUEAlgoTarget
-#  DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+install(TARGETS CLUELib ${INSTALL_LIBRARIES}
+  EXPORT CLUETargets
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 
 if(CMAKE_CUDA_COMPILER)
-  add_library(CLUEGPU src/CLUEAlgoGPU.cu)
+  add_library(CLUELibGPU src/CLUEAlgoGPU.cu)
 
-  target_compile_options(CLUEGPU PRIVATE
+  target_compile_options(CLUELibGPU PRIVATE
   $<$<COMPILE_LANGUAGE:CUDA>:
                         -Xcompiler;
                         -m64;
@@ -24,12 +24,12 @@ if(CMAKE_CUDA_COMPILER)
   >
   )
 
-  target_include_directories(CLUEGPU PUBLIC
+  target_include_directories(CLUELibGPU PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/clueLib/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
-#  install(TARGETS CLUEAlgoGPU_lib ${INSTALL_LIBRARIES}
-#    EXPORT CLUEAlgoTarget
-#    DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+  install(TARGETS CLUELibGPU ${INSTALL_LIBRARIES}
+    EXPORT CLUETargets
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 endif(CMAKE_CUDA_COMPILER)
 

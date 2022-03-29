@@ -53,5 +53,11 @@ endif()
 add_subdirectory(clueLib)
 add_subdirectory(src)
 
+install(EXPORT CLUETargets
+  NAMESPACE ${PROJECT_NAME}::
+  FILE "${PROJECT_NAME}Targets.cmake"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}/"
+  )
+
 message(STATUS "Finished!")
 

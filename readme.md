@@ -26,6 +26,10 @@ git clone --recurse-submodules https://gitlab.cern.ch/kalos/clue.git
 cd clue
 cmake -S . -B build
 cmake --build build
+
+# if installation is needed
+mkdir install
+cd build/ ; cmake .. -DCMAKE_INSTALL_PREFIX=../install; make install
 ```
 
 * **On an Ubuntu machine with GPUs:** Install Boost and TBB first.

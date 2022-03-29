@@ -9,7 +9,7 @@ set_source_files_properties(${PROJECT_SOURCE_DIR}/src/main.cc PROPERTIES LANGUAG
 add_executable(mainCuplaCPUTBB ${PROJECT_SOURCE_DIR}/src/main.cc)
 
 target_compile_options(mainCuplaCPUTBB PRIVATE -DUSE_CUPLA -DFOR_TBB ${tbb_lib})
-target_link_libraries(mainCuplaCPUTBB PRIVATE CLUE TBB::tbb)
+target_link_libraries(mainCuplaCPUTBB PRIVATE CLUELib TBB::tbb)
 
 target_include_directories(mainCuplaCPUTBB PUBLIC
   $<BUILD_INTERFACE:${cupla_DIR}/include>

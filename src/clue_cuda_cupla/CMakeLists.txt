@@ -14,7 +14,7 @@ if(CMAKE_CUDA_COMPILER)
                         -w;
   >
   )
-  target_link_libraries(mainCuplaCUDA PRIVATE CLUE)
+  target_link_libraries(mainCuplaCUDA PRIVATE CLUELib)
 
   target_include_directories(mainCuplaCUDA PUBLIC
     $<BUILD_INTERFACE:${cupla_DIR}/include>
