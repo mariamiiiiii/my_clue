@@ -8,7 +8,7 @@ set(TBB_DIR "/cvmfs/cms.cern.ch/slc7_amd64_gcc820/external/tbb/2020_U2-ghbfee/cm
 
 project(
   CLUE
-  VERSION 1.0
+  VERSION 1.0.0
   DESCRIPTION "The CLUstering by Energy algorithm"
   LANGUAGES CXX)
 
@@ -52,6 +52,13 @@ endif()
 
 add_subdirectory(clueLib)
 add_subdirectory(src)
+
+#--- add version files ---------------------------------------------------------
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CLUEVersion.h
+               ${CMAKE_CURRENT_BINARY_DIR}/CLUEVersion.h )
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CLUEVersion.h
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/CLUE )
+include(cmake/CLUECreateConfig.cmake)
 
 install(EXPORT CLUETargets
   NAMESPACE ${PROJECT_NAME}::
