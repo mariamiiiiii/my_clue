@@ -53,6 +53,13 @@ endif()
 add_subdirectory(clueLib)
 add_subdirectory(src)
 
+#--- add version files ---------------------------------------------------------
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CLUEVersion.h
+               ${CMAKE_CURRENT_BINARY_DIR}/CLUEVersion.h )
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/CLUEVersion.h
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/CLUE )
+include(cmake/CLUECreateConfig.cmake)
+
 install(EXPORT CLUETargets
   NAMESPACE ${PROJECT_NAME}::
   FILE "${PROJECT_NAME}Targets.cmake"

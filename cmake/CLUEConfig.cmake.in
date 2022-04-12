@@ -17,5 +17,5 @@ include("${CMAKE_CURRENT_LIST_DIR}/CLUETargets.cmake")
 
 # print the default "Found:" message and check library location
 include(FindPackageHandleStandardArgs)
-get_property(TEST_CLUE_LIBRARY TARGET CLUE::edm4hep PROPERTY LOCATION)
+get_property(TEST_CLUE_LIBRARY TARGET CLUE::CLUELib PROPERTY LOCATION)
 find_package_handle_standard_args(CLUE DEFAULT_MSG CMAKE_CURRENT_LIST_FILE TEST_CLUE_LIBRARY)
