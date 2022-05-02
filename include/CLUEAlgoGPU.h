@@ -5,8 +5,8 @@
 #include "LayerTilesGPU.h"
 
 static const int maxNSeeds = 100000; 
-static const int maxNFollowers = 20; 
-static const int localStackSizePerSeed = 20; 
+static const int maxNFollowers = 32;
+static const int localStackSizePerSeed = 32;
 
 struct PointsPtr {
   float *x; 
