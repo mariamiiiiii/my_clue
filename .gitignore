@@ -12,7 +12,6 @@ spack*
 *.log
 build
 build.*.log
-Makefile
 NMake
 install.*.history
 setup.*

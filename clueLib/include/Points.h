@@ -1,8 +1,6 @@
 #ifndef Points_h
 #define Points_h
 
-#include <vector>
-
 struct Points {
   
   std::vector<float> x;

@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <chrono>
+#include <regex>
 #include "CLUEAlgo.h"
 #ifndef USE_CUPLA
 #include "CLUEAlgoGPU.h"
@@ -12,6 +13,8 @@
 #endif
 #endif
 
+using namespace std; 
+
 template <typename T>
 std::string to_string_with_precision(const T a_value, const int n = 6)
 {
@@ -19,14 +22,6 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
     out.precision(n);
     out << std::fixed << a_value;
     return out.str();
-}
-
-bool replace(std::string& str, const std::string& from, const std::string& to) {
-    size_t start_pos = str.find(from);
-    if(start_pos == std::string::npos)
-        return false;
-    str.replace(start_pos, from.length(), to);
-    return true;
 }
 
 std::string create_outputfileName(std::string inputFileName, float dc,
@@ -41,9 +36,16 @@ std::string create_outputfileName(std::string inputFileName, float dc,
   suffix.append(to_string_with_precision(outlierDeltaFactor,2));
   suffix.append(".csv");
 
-  std::string outputFileName = inputFileName;
-  replace(outputFileName, "input", "output");
-  replace(outputFileName, ".csv", suffix);
+  std::string tmpFileName;
+  std::regex regexp("input"); 
+  std::regex_replace(back_inserter(tmpFileName),
+                     inputFileName.begin(), inputFileName.end(), regexp, "output");
+
+  std::string outputFileName;
+  std::regex regexp2(".csv"); 
+  std::regex_replace(back_inserter(outputFileName),
+                     tmpFileName.begin(), tmpFileName.end(), regexp2, suffix);
+
   return outputFileName;
 }
 
