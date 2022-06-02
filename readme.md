@@ -1,3 +1,5 @@
+![Logo](plots/clue_logo.png)
+
 # Standalone CLUE Algorithm on GPU and CPU
 
 Z.Chen[1], A. Di Pilato[2,3], F. Pantaleo[4], M. Rovere[4], C. Seez[5]
@@ -6,17 +8,28 @@ Z.Chen[1], A. Di Pilato[2,3], F. Pantaleo[4], M. Rovere[4], C. Seez[5]
 
 ## 1. Setup
 
-The pre-requisite dependencies are `>=gcc7`, `<=gcc8.3`, `>=cuda10`, `Boost`, `TBB`. Fork this repo if developers.
+The pre-requisite dependencies are `>=gcc7`, `<=gcc8.3`, `Boost`, `TBB`. Fork this repo if developers.
+
+If CUDA/nvcc are found on the machine, the compilation is performed automatically also for the GPU case.
+The path to the nvcc compiler will be automatically taken from the machine. In this case, `>=cuda10` and `<=nvcc11.2` are also required.
 
 * **On a CERN machine with GPUs:** Source the LCG View containing the correct version of GCC and Boost:
 ```bash
 source /cvmfs/sft.cern.ch/lcg/views/LCG_96/x86_64-centos7-gcc8-opt/setup.sh
 source /cvmfs/sft.cern.ch/lcg/contrib/gcc/8.3.0/x86_64-centos7/setup.sh
 
+# Get nvcc 11.2, if needed
+source /cvmfs/sft.cern.ch/lcg/releases/cuda/11.2-5cee1/x86_64-centos7-gcc8-opt/setup.sh
+
 # then setup this project
 git clone --recurse-submodules https://gitlab.cern.ch/kalos/clue.git
 cd clue
-make
+cmake -S . -B build
+cmake --build build
+
+# if installation is needed
+mkdir install
+cd build/ ; cmake .. -DCMAKE_INSTALL_PREFIX=../install; make install
 ```
 
 * **On an Ubuntu machine with GPUs:** Install Boost and TBB first.
@@ -44,8 +57,11 @@ as a Seed. )
 
 If the projects compiles without errors, you can go run the CLUE algorithm by
 ```bash
-# ./main [fileName] [dc] [rhoc] [outlierDeltaFactor] [useGPU] [totalNumberOfEvent] [verbose]
-./main aniso_1000 20 25 2 0 10 1
+# ./build/src/clue/main [fileName] [dc] [rhoc] [outlierDeltaFactor] [useGPU] [totalNumberOfEvent] [verbose]
+./build/src/clue/main data/input/aniso_1000.csv 20 25 2 0 10 1
+
+#in case of only CPU
+#./build/src/clue_tbb_cupla/mainCuplaCPUTBB data/input/aniso_1000.csv 20 25 2 0 10 1
 ```
 
 The input files are `data/input/*.csv` with columns 
