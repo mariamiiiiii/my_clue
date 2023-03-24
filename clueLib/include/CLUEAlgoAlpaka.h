@@ -1,6 +1,7 @@
 #pragma once
 #include <alpaka/alpaka.hpp>
 #include <chrono>
+#include <optional>
 
 #include "CLUEAlgo.h"
 #include "LayerTilesAlpaka.h"
@@ -559,7 +560,7 @@ void CLUEAlgoAlpaka<TAcc>::makeClusters() {
   // time actual kernel runtime
   finish = std::chrono::high_resolution_clock::now();
   elapsed = finish - start;
-  std::cout << "--- computeHistogram:            " << elapsed.count() * 1000
+  std::cout << "--- computeLocalDensity:            " << elapsed.count() * 1000
             << "ms\n";
 
   start = std::chrono::high_resolution_clock::now();
@@ -568,7 +569,7 @@ void CLUEAlgoAlpaka<TAcc>::makeClusters() {
   // time actual kernel runtime
   finish = std::chrono::high_resolution_clock::now();
   elapsed = finish - start;
-  std::cout << "--- computeHistogram:            " << elapsed.count() * 1000
+  std::cout << "--- computeDistanceToHigher:            " << elapsed.count() * 1000
             << "ms\n";
 
   start = std::chrono::high_resolution_clock::now();
@@ -577,7 +578,7 @@ void CLUEAlgoAlpaka<TAcc>::makeClusters() {
   // time actual kernel runtime
   finish = std::chrono::high_resolution_clock::now();
   elapsed = finish - start;
-  std::cout << "--- computeHistogram:            " << elapsed.count() * 1000
+  std::cout << "--- findClusters:            " << elapsed.count() * 1000
             << "ms\n";
 
   start = std::chrono::high_resolution_clock::now();
@@ -586,7 +587,7 @@ void CLUEAlgoAlpaka<TAcc>::makeClusters() {
   // time actual kernel runtime
   finish = std::chrono::high_resolution_clock::now();
   elapsed = finish - start;
-  std::cout << "--- computeHistogram:            " << elapsed.count() * 1000
+  std::cout << "--- assignClusters:            " << elapsed.count() * 1000
             << "ms\n";
 
   copy_tohost();

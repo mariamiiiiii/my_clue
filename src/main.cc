@@ -9,21 +9,14 @@
 
 #include "CLUEAlgo.h"
 
-#if !defined(USE_CUPLA) && !defined(USE_ALPAKA)
+#if defined(USE_ALPAKA)
+#include "CLUEAlgoAlpaka.h"
+#else
 #include "CLUEAlgoGPU.h"
 #endif
 
-/**
-#if defined(USE_CUPLA)
-#include "CLUEAlgoCupla.h"
-# ifdef FOR_TBB
+#ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_ENABLED
 #include "tbb/task_scheduler_init.h"
-# endif
-#endif
-*/
-
-#if defined(USE_ALPAKA)
-#include "CLUEAlgoAlpaka.h"
 #endif
 
 using namespace std;
@@ -131,23 +124,6 @@ void mainRun(const std::string &inputFileName,
     }
     // output result to outputFileName. -1 means all points.
     clueAlgo.verboseResults(outputFileName, -1);
-/**
-#elif defined(USE_CUPLA)
-    std::cout << "CUPLA Backend selected" << std::endl;
-    CLUEAlgoCupla<cupla::Acc> clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
-    for (int r = 0; r < repeats; r++) {
-      clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
-      // measure excution time of makeClusters
-      auto start = std::chrono::high_resolution_clock::now();
-      clueAlgo.makeClusters();
-      auto finish = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> elapsed = finish - start;
-      std::cout << "Elapsed time: " << elapsed.count() * 1000 << " ms\n";
-    }
-
-    // output result to outputFileName. -1 means all points.
-    if (verbose) clueAlgo.verboseResults(outputFileName, -1);
-*/
 #endif
   } else {
     std::cout << "Native CPU(serial) Backend selected" << std::endl;
@@ -221,7 +197,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-#ifdef FOR_TBB
+#ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_ENABLED
   if (verbose) {
     std::cout << "Setting up " << TBBNumberOfThread << " TBB Threads"
               << std::endl;

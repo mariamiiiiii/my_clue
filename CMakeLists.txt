@@ -17,7 +17,6 @@ set(CHECK_CUDA_VERSION ON CACHE BOOL "Check CUDA Runtime version.")
 # Activate VERBOSE output
 set(CMAKE_VERBOSE_MAKEFILE on)
 
-
 # Check for CUDA
 include(CheckLanguage)
 check_language(CUDA)
