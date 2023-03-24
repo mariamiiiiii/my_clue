@@ -1,11 +1,11 @@
-#ifndef GPUVecArrayCupla_h
-#define GPUVecArrayCupla_h
+#ifndef GPUVecArrayAlpaka_h
+#define GPUVecArrayAlpaka_h
 
 //
 // Author: Felice Pantaleo, CERN
 //
 
-namespace GPUCupla {
+namespace GPUAlpaka {
 
 template <class T, int maxSize> struct VecArray {
   inline constexpr int push_back_unsafe(const T &element) {
@@ -43,13 +43,13 @@ template <class T, int maxSize> struct VecArray {
   template<typename T_Acc>
   ALPAKA_FN_ACC
   int push_back(const T_Acc &acc, const T &element) {
-    auto previousSize = atomicAdd(&m_size, 1);
+    auto previousSize = atomicAdd(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
     if (previousSize < maxSize) {
       m_data[previousSize] = element;
       return previousSize;
     } else {
-      atomicSub(&m_size, 1);
-      assert(("Too few elemets reserved", 0));
+      atomicSub(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
+      assert(("Too few elemets reserved", maxSize));
       return -1;
     }
   }
@@ -57,12 +57,12 @@ template <class T, int maxSize> struct VecArray {
   template <typename T_Acc, class... Ts>
   ALPAKA_FN_ACC
   int emplace_back(const T_Acc & acc, Ts &&... args) {
-    auto previousSize = atomicAdd(&m_size, 1);
+    auto previousSize = atomicAdd(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
     if (previousSize < maxSize) {
       (new (&m_data[previousSize]) T(std::forward<Ts>(args)...));
       return previousSize;
     } else {
-      atomicSub(&m_size, 1);
+      atomicSub(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
       return -1;
     }
   }

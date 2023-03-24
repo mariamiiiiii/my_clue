@@ -6,8 +6,8 @@ project(
   DESCRIPTION "The CLUstering by Energy algorithm"
   LANGUAGES CXX)
 
-# Location of the cupla
-set(cupla_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cupla CACHE PATH "Path to CUPLA (by default: submodule)")
+# Location of the ALPAKA
+set(ALPAKA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/alpaka CACHE PATH "Path to ALPAKA (by default: submodule)")
 
 # Location of TBB
 set(TBB_DIR "/cvmfs/cms.cern.ch/slc7_amd64_gcc820/external/tbb/2020_U2-ghbfee/cmake/TBB/")

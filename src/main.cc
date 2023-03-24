@@ -11,12 +11,14 @@
 #include "CLUEAlgoGPU.h"
 #endif
 
+/**
 #if defined(USE_CUPLA)
 #include "CLUEAlgoCupla.h"
 # ifdef FOR_TBB
 #include "tbb/task_scheduler_init.h"
 # endif
 #endif
+*/
 
 #if defined(USE_ALPAKA)
 #include "CLUEAlgoAlpaka.h"
@@ -91,7 +93,7 @@ void mainRun(const std::string & inputFileName,
   //////////////////////////////
   std::cout << "Start to run CLUE algorithm" << std::endl;
   if (use_accelerator) {
-#if !defined(USE_CUPLA) && !defined(USE_ALPAKA)
+#if !defined(USE_ALPAKA)
     std::cout << "Native CUDA Backend selected" << std::endl;
     CLUEAlgoGPU clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
     for (unsigned r = 0; r < repeats; r++) {
@@ -127,6 +129,7 @@ void mainRun(const std::string & inputFileName,
     }
     // output result to outputFileName. -1 means all points.
     clueAlgo.verboseResults(outputFileName, -1);
+/**
 #elif defined(USE_CUPLA)
     std::cout << "CUPLA Backend selected" << std::endl;
     CLUEAlgoCupla<cupla::Acc> clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
@@ -142,6 +145,7 @@ void mainRun(const std::string & inputFileName,
 
     // output result to outputFileName. -1 means all points.
     if (verbose) clueAlgo.verboseResults(outputFileName, -1);
+*/
 #endif
   } else {
     std::cout << "Native CPU(serial) Backend selected" << std::endl;

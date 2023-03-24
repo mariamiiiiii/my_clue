@@ -1,15 +1,15 @@
-#ifndef LayerTilesCupla_h
-#define LayerTilesCupla_h
+#ifndef LayerTilesAlpaka_h
+#define LayerTilesAlpaka_h
 
 #include <memory>
 #include <cmath>
 #include <algorithm>
 #include <cstdint>
 
-#include "GPUVecArrayCupla.h"
+#include "GPUVecArrayAlpaka.h"
 #include "LayerTilesConstants.h"
 
-using GPUVect = GPUCupla::VecArray<int, LayerTilesConstants::maxTileDepth>;
+using GPUVect = GPUAlpaka::VecArray<int, LayerTilesConstants::maxTileDepth>;
 
 #if !defined(ALPAKA_ACC_GPU_CUDA_ENABLED) && !defined(ALPAKA_ACC_GPU_HIP_ENABLED)
 struct int4
@@ -19,12 +19,12 @@ struct int4
 #endif
 
 template <typename Acc>
-class LayerTilesCupla {
+class LayerTilesAlpaka {
 
   public:
 
     // constructor
-    LayerTilesCupla(const Acc & acc){acc_=acc;};
+    LayerTilesAlpaka(const Acc & acc){acc_=acc;};
 
     ALPAKA_FN_ACC
     void fill(const std::vector<float>& x, const std::vector<float>& y) {
@@ -74,7 +74,7 @@ class LayerTilesCupla {
     }
 
   private:
-    GPUCupla::VecArray<GPUCupla::VecArray<int, LayerTilesConstants::maxTileDepth>, LayerTilesConstants::nColumns * LayerTilesConstants::nRows > layerTiles_;
+    GPUAlpaka::VecArray<GPUAlpaka::VecArray<int, LayerTilesConstants::maxTileDepth>, LayerTilesConstants::nColumns * LayerTilesConstants::nRows > layerTiles_;
     const Acc & acc_;
 };
 #endif
