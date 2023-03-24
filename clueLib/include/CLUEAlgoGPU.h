@@ -4,25 +4,25 @@
 #include "CLUEAlgo.h"
 #include "LayerTilesGPU.h"
 
-static const int maxNSeeds = 100000; 
+static const int maxNSeeds = 100000;
 static const int maxNFollowers = 32;
 static const int localStackSizePerSeed = 32;
 
 struct PointsPtr {
-  float *x; 
+  float *x;
   float *y ;
   int *layer ;
   float *weight ;
 
-  float *rho ; 
-  float *delta; 
+  float *rho ;
+  float *delta;
   int *nearestHigher;
-  int *clusterIndex; 
+  int *clusterIndex;
   int *isSeed;
 };
 
 class CLUEAlgoGPU : public CLUEAlgo {
-  // inheriate from CLUEAlgo
+  // inherit from CLUEAlgo
 
   public:
     // constructor
