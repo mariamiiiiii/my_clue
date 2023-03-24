@@ -1,3 +1,5 @@
+#include <unistd.h>
+#include <stdlib.h>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -13,45 +15,33 @@
 #endif
 #endif
 
-using namespace std; 
+using namespace std;
 
-template <typename T>
-std::string to_string_with_precision(const T a_value, const int n = 6)
-{
-    std::ostringstream out;
-    out.precision(n);
-    out << std::fixed << a_value;
-    return out.str();
-}
-
-std::string create_outputfileName(std::string inputFileName, float dc,
-                                 float rhoc, float outlierDeltaFactor,
-                                 bool useParallel){
-  std::string underscore = "_", suffix = "";
-  suffix.append(underscore);
-  suffix.append(to_string_with_precision(dc,2));
-  suffix.append(underscore);
-  suffix.append(to_string_with_precision(rhoc,2));
-  suffix.append(underscore);
-  suffix.append(to_string_with_precision(outlierDeltaFactor,2));
-  suffix.append(".csv");
+std::string create_outputfileName(const std::string inputFileName,
+    const float dc,
+    const float rhoc, const float outlierDeltaFactor){
+  //  C++20
+  //  auto suffix = std::format("_{:.2f}_{:.2f}_{:.2f}.csv", dc, rhoc, outlierDeltaFactor);
+  char suffix[100];
+  snprintf(suffix, 100, "_dc_%.2f_rho_%.2f_outl_%.2f.csv", dc, rhoc, outlierDeltaFactor);
 
   std::string tmpFileName;
-  std::regex regexp("input"); 
+  std::regex regexp("input");
   std::regex_replace(back_inserter(tmpFileName),
                      inputFileName.begin(), inputFileName.end(), regexp, "output");
 
   std::string outputFileName;
-  std::regex regexp2(".csv"); 
+  std::regex regexp2(".csv");
   std::regex_replace(back_inserter(outputFileName),
                      tmpFileName.begin(), tmpFileName.end(), regexp2, suffix);
 
   return outputFileName;
 }
 
-void mainRun( std::string inputFileName, std::string outputFileName,
-              float dc, float rhoc, float outlierDeltaFactor,
-              bool useGPU, int repeats, bool verbose  ) {
+void mainRun(const std::string & inputFileName,
+    const std::string & outputFileName,
+    const float dc, const float rhoc, const float outlierDeltaFactor,
+    const bool use_accelerator, const int repeats, const bool verbose) {
 
   //////////////////////////////
   // read toy data from csv file
@@ -82,11 +72,11 @@ void mainRun( std::string inputFileName, std::string outputFileName,
   // run CLUE algorithm
   //////////////////////////////
   std::cout << "Start to run CLUE algorithm" << std::endl;
-  if (useGPU) {
+  if (use_accelerator) {
 #ifndef USE_CUPLA
     std::cout << "Using CLUEAlgoGPU: " << std::endl;
     CLUEAlgoGPU clueAlgo(dc, rhoc, outlierDeltaFactor,
-			 verbose);
+                         verbose);
     for (unsigned r = 0; r<repeats; r++){
       clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
       // measure excution time of makeClusters
@@ -104,7 +94,7 @@ void mainRun( std::string inputFileName, std::string outputFileName,
 #else
     std::cout << "Using CLUEAlgoCupla: " << std::endl;
     CLUEAlgoCupla<cupla::Acc> clueAlgo(dc, rhoc, outlierDeltaFactor,
-				       verbose);
+                                       verbose);
   for (int r = 0; r<repeats; r++){
     clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
     // measure excution time of makeClusters
@@ -149,32 +139,51 @@ int main(int argc, char *argv[]) {
   //////////////////////////////
   // MARK -- set algorithm parameters
   //////////////////////////////
-  float dc=20.f, rhoc=80.f, outlierDeltaFactor=2.f;
-  bool useGPU=false;
-  int totalNumberOfEvent = 10;
+
+  extern char *optarg;
+
+  bool use_accelerator=false;
   bool verbose=false;
-
+  float dc=20.f, rhoc=80.f, outlierDeltaFactor=2.f;
+  int totalNumberOfEvent = 10;
   int TBBNumberOfThread = 1;
+  int opt;
+  std::string inputFileName;
 
-  std::string inputFileName = argv[1];
-  if (argc == 8 || argc == 9) {
-    dc = std::stof(argv[2]);
-    rhoc = std::stof(argv[3]);
-    outlierDeltaFactor = std::stof(argv[4]);
-    useGPU = (std::stoi(argv[5])==1)? true:false;
-    totalNumberOfEvent = std::stoi(argv[6]);
-    verbose = (std::stoi(argv[7])==1)? true:false;
-    if (argc == 9) {
-      TBBNumberOfThread = std::stoi(argv[8]);
-      if (verbose) {
+  while((opt = getopt(argc, argv, "i:d:r:o:e:t:uv")) != -1 ) {
+    switch (opt) {
+      case 'i': /* input filename */
+        inputFileName = string(optarg);
+        break;
+      case 'd': /* delta_c */
+        dc = stof(string(optarg));
+        break;
+      case 'r': /* critical density */
+        rhoc = stof(string(optarg));
+        break;
+      case 'o': /* outlier factor */
+        outlierDeltaFactor = stof(string(optarg));
+        break;
+      case 'e': /* number of events */
+        totalNumberOfEvent = stoi(string(optarg));
+        break;
+      case 't': /* number of TBB threads */
+        TBBNumberOfThread = stoi(string(optarg));
         std::cout << "Using " << TBBNumberOfThread;
-	std::cout << " TBB Threads" << std::endl;
-      }
+        std::cout << " TBB Threads" << std::endl;
+        break;
+      case 'u': /* Use accelerator */
+        use_accelerator = true;
+        break;
+      case 'v': /* Use accelerator */
+        verbose = true;
+        break;
+      default:
+        std::cout << "bin/main -i [fileName] -d [dc] -r [rhoc] -o [outlierDeltaFactor] -e [totalNumberOfEvent] -t [NumTBBThreads] -u -v" << std::endl;
+        exit(EXIT_FAILURE);
     }
-  } else {
-    std::cout << "bin/main [fileName] [dc] [rhoc] [outlierDeltaFactor] [useGPU] [totalNumberOfEvent] [verbose] [NumTBBThreads]" << std::endl;
-    return 1;
   }
+
 
 #ifdef FOR_TBB
   if (verbose) {
@@ -189,7 +198,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Input file: " << inputFileName << std::endl;
 
 
-  std::string outputFileName = create_outputfileName(inputFileName, dc, rhoc, outlierDeltaFactor, useGPU);
+  std::string outputFileName = create_outputfileName(inputFileName, dc, rhoc, outlierDeltaFactor);
   std::cout << "Output file: " << outputFileName << std::endl;
 
 
@@ -197,8 +206,8 @@ int main(int argc, char *argv[]) {
   // MARK -- test run
   //////////////////////////////
   mainRun(inputFileName, outputFileName,
-          dc, rhoc, outlierDeltaFactor, 
-          useGPU, totalNumberOfEvent, verbose);
+          dc, rhoc, outlierDeltaFactor,
+          use_accelerator, totalNumberOfEvent, verbose);
 
   return 0;
 }
