@@ -1,16 +1,22 @@
 cmake_minimum_required(VERSION 3.8)
 
+project(
+  CLUE
+  VERSION 1.0.0
+  DESCRIPTION "The CLUstering by Energy algorithm"
+  LANGUAGES CXX)
+
 # Location of the cupla
 set(cupla_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cupla CACHE PATH "Path to CUPLA (by default: submodule)")
 
 # Location of TBB
 set(TBB_DIR "/cvmfs/cms.cern.ch/slc7_amd64_gcc820/external/tbb/2020_U2-ghbfee/cmake/TBB/")
 
-project(
-  CLUE
-  VERSION 1.0.0
-  DESCRIPTION "The CLUstering by Energy algorithm"
-  LANGUAGES CXX)
+set(CHECK_CUDA_VERSION ON CACHE BOOL "Check CUDA Runtime version.")
+
+# Activate VERBOSE output
+set(CMAKE_VERBOSE_MAKEFILE on)
+
 
 # Check for CUDA
 include(CheckLanguage)
@@ -19,9 +25,11 @@ if(CMAKE_CUDA_COMPILER)
   enable_language(CUDA)
   set(CMAKE_CXX_STANDARD 17)
   set(CMAKE_CUDA_ARCHITECTURES "60;70;75")
-  set(MAX_CUDA_VERSION "11.2.142")
-  if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER ${MAX_CUDA_VERSION})
-    message(FATAL_ERROR "Max supported NVCC is ${MAX_CUDA_VERSION}")
+  if(CHECK_CUDA_VERSION)
+    set(MAX_CUDA_VERSION "11.2.142")
+    if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER ${MAX_CUDA_VERSION})
+      message(FATAL_ERROR "Max supported NVCC is ${MAX_CUDA_VERSION}")
+    endif()
   endif()
 else()
   message(STATUS "No CUDA compiler found. Still, you can run the C++ version!")
