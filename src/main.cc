@@ -1,10 +1,12 @@
-#include <unistd.h>
 #include <stdlib.h>
-#include <iostream>
-#include <fstream>
-#include <string>
+#include <unistd.h>
+
 #include <chrono>
+#include <fstream>
+#include <iostream>
 #include <regex>
+#include <string>
+
 #include "CLUEAlgo.h"
 
 #if !defined(USE_CUPLA) && !defined(USE_ALPAKA)
@@ -22,15 +24,13 @@
 
 #if defined(USE_ALPAKA)
 #include "CLUEAlgoAlpaka.h"
-# endif
+#endif
 
 using namespace std;
 
-void readDataFromFile(const std::string & inputFileName,
-    std::vector<float> & x,
-    std::vector<float> & y,
-    std::vector<int> &layer,
-    std::vector<float> & weight) {
+void readDataFromFile(const std::string &inputFileName, std::vector<float> &x,
+                      std::vector<float> &y, std::vector<int> &layer,
+                      std::vector<float> &weight) {
   // make dummy layers
   for (int l = 0; l < NLAYERS; l++) {
     // open csv file
@@ -50,32 +50,34 @@ void readDataFromFile(const std::string & inputFileName,
   }
 }
 
-std::string create_outputfileName(const std::string & inputFileName,
-    const float dc,
-    const float rhoc, const float outlierDeltaFactor){
+std::string create_outputfileName(const std::string &inputFileName,
+                                  const float dc, const float rhoc,
+                                  const float outlierDeltaFactor) {
   //  C++20
-  //  auto suffix = std::format("_{:.2f}_{:.2f}_{:.2f}.csv", dc, rhoc, outlierDeltaFactor);
+  //  auto suffix = std::format("_{:.2f}_{:.2f}_{:.2f}.csv", dc, rhoc,
+  //  outlierDeltaFactor);
   char suffix[100];
-  snprintf(suffix, 100, "_dc_%.2f_rho_%.2f_outl_%.2f.csv", dc, rhoc, outlierDeltaFactor);
+  snprintf(suffix, 100, "_dc_%.2f_rho_%.2f_outl_%.2f.csv", dc, rhoc,
+           outlierDeltaFactor);
 
   std::string tmpFileName;
   std::regex regexp("input");
-  std::regex_replace(back_inserter(tmpFileName),
-                     inputFileName.begin(), inputFileName.end(), regexp, "output");
+  std::regex_replace(back_inserter(tmpFileName), inputFileName.begin(),
+                     inputFileName.end(), regexp, "output");
 
   std::string outputFileName;
   std::regex regexp2(".csv");
-  std::regex_replace(back_inserter(outputFileName),
-                     tmpFileName.begin(), tmpFileName.end(), regexp2, suffix);
+  std::regex_replace(back_inserter(outputFileName), tmpFileName.begin(),
+                     tmpFileName.end(), regexp2, suffix);
 
   return outputFileName;
 }
 
-void mainRun(const std::string & inputFileName,
-    const std::string & outputFileName,
-    const float dc, const float rhoc, const float outlierDeltaFactor,
-    const bool use_accelerator, const int repeats, const bool verbose) {
-
+void mainRun(const std::string &inputFileName,
+             const std::string &outputFileName, const float dc,
+             const float rhoc, const float outlierDeltaFactor,
+             const bool use_accelerator, const int repeats,
+             const bool verbose) {
   //////////////////////////////
   // read toy data from csv file
   //////////////////////////////
@@ -150,43 +152,39 @@ void mainRun(const std::string & inputFileName,
   } else {
     std::cout << "Native CPU(serial) Backend selected" << std::endl;
     CLUEAlgo clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
-    for (int r = 0; r<repeats; r++){
+    for (int r = 0; r < repeats; r++) {
       clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
       // measure excution time of makeClusters
       auto start = std::chrono::high_resolution_clock::now();
       clueAlgo.makeClusters();
       auto finish = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> elapsed = finish - start;
-      std::cout << "Elapsed time: " << elapsed.count() *1000 << " ms\n";
+      std::cout << "Elapsed time: " << elapsed.count() * 1000 << " ms\n";
     }
 
     // output result to outputFileName. -1 means all points.
-    if(verbose)
-      clueAlgo.verboseResults(outputFileName, -1);
+    if (verbose) clueAlgo.verboseResults(outputFileName, -1);
   }
 
   std::cout << "Finished running CLUE algorithm" << std::endl;
-} // end of testRun()
-
-
+}  // end of testRun()
 
 int main(int argc, char *argv[]) {
-
   //////////////////////////////
   // MARK -- set algorithm parameters
   //////////////////////////////
 
   extern char *optarg;
 
-  bool use_accelerator=false;
-  bool verbose=false;
-  float dc=20.f, rhoc=80.f, outlierDeltaFactor=2.f;
+  bool use_accelerator = false;
+  bool verbose = false;
+  float dc = 20.f, rhoc = 80.f, outlierDeltaFactor = 2.f;
   int totalNumberOfEvent = 10;
   int TBBNumberOfThread = 1;
   int opt;
   std::string inputFileName;
 
-  while((opt = getopt(argc, argv, "i:d:r:o:e:t:uv")) != -1 ) {
+  while ((opt = getopt(argc, argv, "i:d:r:o:e:t:uv")) != -1) {
     switch (opt) {
       case 'i': /* input filename */
         inputFileName = string(optarg);
@@ -215,15 +213,18 @@ int main(int argc, char *argv[]) {
         verbose = true;
         break;
       default:
-        std::cout << "bin/main -i [fileName] -d [dc] -r [rhoc] -o [outlierDeltaFactor] -e [totalNumberOfEvent] -t [NumTBBThreads] -u -v" << std::endl;
+        std::cout << "bin/main -i [fileName] -d [dc] -r [rhoc] -o "
+                     "[outlierDeltaFactor] -e [totalNumberOfEvent] -t "
+                     "[NumTBBThreads] -u -v"
+                  << std::endl;
         exit(EXIT_FAILURE);
     }
   }
 
-
 #ifdef FOR_TBB
   if (verbose) {
-    std::cout << "Setting up " << TBBNumberOfThread << " TBB Threads" << std::endl;
+    std::cout << "Setting up " << TBBNumberOfThread << " TBB Threads"
+              << std::endl;
   }
   tbb::task_scheduler_init init(TBBNumberOfThread);
 #endif
@@ -233,16 +234,14 @@ int main(int argc, char *argv[]) {
   //////////////////////////////
   std::cout << "Input file: " << inputFileName << std::endl;
 
-
-  std::string outputFileName = create_outputfileName(inputFileName, dc, rhoc, outlierDeltaFactor);
+  std::string outputFileName =
+      create_outputfileName(inputFileName, dc, rhoc, outlierDeltaFactor);
   std::cout << "Output file: " << outputFileName << std::endl;
-
 
   //////////////////////////////
   // MARK -- test run
   //////////////////////////////
-  mainRun(inputFileName, outputFileName,
-          dc, rhoc, outlierDeltaFactor,
+  mainRun(inputFileName, outputFileName, dc, rhoc, outlierDeltaFactor,
           use_accelerator, totalNumberOfEvent, verbose);
 
   return 0;

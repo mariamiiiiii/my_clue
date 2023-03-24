@@ -1,10 +1,9 @@
 #pragma once
+#include <alpaka/alpaka.hpp>
 #include <chrono>
 
-#include <alpaka/alpaka.hpp>
-
-#include "LayerTilesAlpaka.h"
 #include "CLUEAlgo.h"
+#include "LayerTilesAlpaka.h"
 
 #define DECLARE_TASKTYPE_AND_KERNEL(ACC, NAME, ...)         \
   struct Kernel##NAME {};                                   \
@@ -193,8 +192,8 @@ class CLUEAlgoAlpaka : public CLUEAlgo {
             device_, seedsExtents));
 
     device_followers_ = std::make_optional(
-        alpaka::allocBuf<GPUAlpaka::VecArray<int, maxNFollowers>, Idx>(device_,
-                                                                      extents));
+        alpaka::allocBuf<GPUAlpaka::VecArray<int, maxNFollowers>, Idx>(
+            device_, extents));
 
     // Update RAW device pointers, grouped in a struct for convenience
     device_runner_.ptrs_.x = alpaka::getPtrNative(device_bufs_.x.value());
@@ -309,7 +308,6 @@ auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
     TAcc const &acc,
     CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelComputeHistogram dummy,
     int numberOfPoints) const -> void {
-
   const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
   if (i < numberOfPoints) {
     // push index of points into tiles
@@ -336,7 +334,6 @@ auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
     // loop over bins in the search box
     for (int xBin = search_box.x; xBin < search_box.y + 1; ++xBin) {
       for (int yBin = search_box.z; yBin < search_box.w + 1; ++yBin) {
-
         // get the id of this bin
         int binId = ptrs_.hist_[layeri].getGlobalBinByBin(xBin, yBin);
         // get the size of this bin
@@ -418,10 +415,12 @@ auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
 }
 
 template <typename TAcc>
-auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
-    TAcc const &acc, KernelFindClusters dummy, float outlierDeltaFactor,
-    float dc, float rhoc, int numberOfPoints) const -> void {
-
+auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(TAcc const &acc,
+                                                    KernelFindClusters dummy,
+                                                    float outlierDeltaFactor,
+                                                    float dc, float rhoc,
+                                                    int numberOfPoints) const
+    -> void {
   const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
 
   if (i < numberOfPoints) {
@@ -450,13 +449,11 @@ auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
 template <typename TAcc>
 auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
     TAcc const &acc,
-    CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelAssignClusters dummy)
-    const -> void {
-
+    CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelAssignClusters dummy) const
+    -> void {
   const Idx idxCls(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
 
   if (idxCls < ptrs_.seeds_[0].size()) {
-
     int localStack[localStackSizePerSeed] = {-1};
     int localStackSize = 0;
 
