@@ -6,18 +6,49 @@
 #include <chrono>
 #include <regex>
 #include "CLUEAlgo.h"
-#ifndef USE_CUPLA
+
+#if !defined(USE_CUPLA) && !defined(USE_ALPAKA)
 #include "CLUEAlgoGPU.h"
-#else
+#endif
+
+#if defined(USE_CUPLA)
 #include "CLUEAlgoCupla.h"
-#ifdef FOR_TBB
+# ifdef FOR_TBB
 #include "tbb/task_scheduler_init.h"
+# endif
 #endif
-#endif
+
+#if defined(USE_ALPAKA)
+#include "CLUEAlgoAlpaka.h"
+# endif
 
 using namespace std;
 
-std::string create_outputfileName(const std::string inputFileName,
+void readDataFromFile(const std::string & inputFileName,
+    std::vector<float> & x,
+    std::vector<float> & y,
+    std::vector<int> &layer,
+    std::vector<float> & weight) {
+  // make dummy layers
+  for (int l = 0; l < NLAYERS; l++) {
+    // open csv file
+    std::ifstream iFile(inputFileName);
+    std::string value = "";
+    // Iterate through each line and split the content using delimeter
+    while (getline(iFile, value, ',')) {
+      x.push_back(std::stof(value));
+      getline(iFile, value, ',');
+      y.push_back(std::stof(value));
+      getline(iFile, value, ',');
+      layer.push_back(std::stoi(value) + l);
+      getline(iFile, value);
+      weight.push_back(std::stof(value));
+    }
+    iFile.close();
+  }
+}
+
+std::string create_outputfileName(const std::string & inputFileName,
     const float dc,
     const float rhoc, const float outlierDeltaFactor){
   //  C++20
@@ -52,20 +83,7 @@ void mainRun(const std::string & inputFileName,
   std::vector<int> layer;
   std::vector<float> weight;
 
-  // make dummy layers
-  for (int l=0; l<NLAYERS; l++){
-    // open csv file
-    std::ifstream iFile(inputFileName);
-    std::string value = "";
-    // Iterate through each line and split the content using delimeter
-    while (getline(iFile, value, ',')) {
-      x.push_back(std::stof(value)) ;
-      getline(iFile, value, ','); y.push_back(std::stof(value));
-      getline(iFile, value, ','); layer.push_back(std::stoi(value) + l);
-      getline(iFile, value); weight.push_back(std::stof(value));
-    }
-    iFile.close();
-  }
+  readDataFromFile(inputFileName, x, y, layer, weight);
   std::cout << "Finished loading input points" << std::endl;
 
   //////////////////////////////
@@ -73,11 +91,10 @@ void mainRun(const std::string & inputFileName,
   //////////////////////////////
   std::cout << "Start to run CLUE algorithm" << std::endl;
   if (use_accelerator) {
-#ifndef USE_CUPLA
-    std::cout << "Using CLUEAlgoGPU: " << std::endl;
-    CLUEAlgoGPU clueAlgo(dc, rhoc, outlierDeltaFactor,
-                         verbose);
-    for (unsigned r = 0; r<repeats; r++){
+#if !defined(USE_CUPLA) && !defined(USE_ALPAKA)
+    std::cout << "Native CUDA Backend selected" << std::endl;
+    CLUEAlgoGPU clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
+    for (unsigned r = 0; r < repeats; r++) {
       clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
       // measure excution time of makeClusters
       auto start = std::chrono::high_resolution_clock::now();
@@ -85,34 +102,49 @@ void mainRun(const std::string & inputFileName,
       auto finish = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> elapsed = finish - start;
       std::cout << "Iteration " << r;
-      std::cout << " | Elapsed time: " << elapsed.count()*1000 << " ms\n";
+      std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
     }
 
     // output result to outputFileName. -1 means all points.
     clueAlgo.verboseResults(outputFileName, -1);
-
-#else
-    std::cout << "Using CLUEAlgoCupla: " << std::endl;
-    CLUEAlgoCupla<cupla::Acc> clueAlgo(dc, rhoc, outlierDeltaFactor,
-                                       verbose);
-  for (int r = 0; r<repeats; r++){
-    clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
-    // measure excution time of makeClusters
-    auto start = std::chrono::high_resolution_clock::now();
-    clueAlgo.makeClusters();
-    auto finish = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = finish - start;
-    std::cout << "Elapsed time: " << elapsed.count() *1000 << " ms\n";
-  }
-
-  // output result to outputFileName. -1 means all points.
-  if(verbose)
+#elif defined(USE_ALPAKA)
+    std::cout << "ALPAKA 'Backend' selected" << std::endl;
+    using namespace alpaka;
+    // Define the index domain
+    using Dim = alpaka::DimInt<1u>;
+    using Idx = uint32_t;
+    using Acc = SelectedAcc<Dim, Idx>;
+    CLUEAlgoAlpaka<Acc> clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
+    for (unsigned r = 0; r < repeats; r++) {
+      clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
+      // measure excution time of makeClusters
+      auto start = std::chrono::high_resolution_clock::now();
+      clueAlgo.makeClusters();
+      auto finish = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> elapsed = finish - start;
+      std::cout << "Iteration " << r;
+      std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
+    }
+    // output result to outputFileName. -1 means all points.
     clueAlgo.verboseResults(outputFileName, -1);
+#elif defined(USE_CUPLA)
+    std::cout << "CUPLA Backend selected" << std::endl;
+    CLUEAlgoCupla<cupla::Acc> clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
+    for (int r = 0; r < repeats; r++) {
+      clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
+      // measure excution time of makeClusters
+      auto start = std::chrono::high_resolution_clock::now();
+      clueAlgo.makeClusters();
+      auto finish = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> elapsed = finish - start;
+      std::cout << "Elapsed time: " << elapsed.count() * 1000 << " ms\n";
+    }
+
+    // output result to outputFileName. -1 means all points.
+    if (verbose) clueAlgo.verboseResults(outputFileName, -1);
 #endif
-
-
   } else {
-    std::cout << "Using CLUEAlgo: " << std::endl;
+    std::cout << "Native CPU(serial) Backend selected" << std::endl;
     CLUEAlgo clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
     for (int r = 0; r<repeats; r++){
       clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
@@ -175,7 +207,7 @@ int main(int argc, char *argv[]) {
       case 'u': /* Use accelerator */
         use_accelerator = true;
         break;
-      case 'v': /* Use accelerator */
+      case 'v': /* Verbose output */
         verbose = true;
         break;
       default:
