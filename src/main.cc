@@ -92,7 +92,8 @@ void mainRun(const std::string &inputFileName,
     std::cout << "Native CUDA Backend selected" << std::endl;
     CLUEAlgoGPU clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
     for (unsigned r = 0; r < repeats; r++) {
-      clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
+      if (!clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
+        exit(EXIT_FAILURE);
       // measure excution time of makeClusters
       auto start = std::chrono::high_resolution_clock::now();
       clueAlgo.makeClusters();
@@ -113,7 +114,8 @@ void mainRun(const std::string &inputFileName,
     using Acc = SelectedAcc<Dim, Idx>;
     CLUEAlgoAlpaka<Acc> clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
     for (unsigned r = 0; r < repeats; r++) {
-      clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
+      if (!clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
+        exit(EXIT_FAILURE);
       // measure excution time of makeClusters
       auto start = std::chrono::high_resolution_clock::now();
       clueAlgo.makeClusters();
@@ -129,7 +131,8 @@ void mainRun(const std::string &inputFileName,
     std::cout << "Native CPU(serial) Backend selected" << std::endl;
     CLUEAlgo clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
     for (int r = 0; r < repeats; r++) {
-      clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]);
+      if (!clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
+        exit(EXIT_FAILURE);
       // measure excution time of makeClusters
       auto start = std::chrono::high_resolution_clock::now();
       clueAlgo.makeClusters();

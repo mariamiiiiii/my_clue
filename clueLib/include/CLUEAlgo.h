@@ -30,7 +30,7 @@ class CLUEAlgo {
 
   Points points_;
 
-  bool setPoints(int n, float* x, float* y, int* layer, float* weight) {
+  int setPoints(int n, float* x, float* y, int* layer, float* weight) {
     points_.clear();
     // input variables
     for (int i = 0; i < n; ++i) {
@@ -41,7 +41,6 @@ class CLUEAlgo {
     }
 
     points_.n = points_.x.size();
-    if (points_.n == 0) return 1;
 
     // result variables
     points_.rho.resize(points_.n, 0);
@@ -50,7 +49,8 @@ class CLUEAlgo {
     points_.followers.resize(points_.n);
     points_.clusterIndex.resize(points_.n, -1);
     points_.isSeed.resize(points_.n, 0);
-    return 0;
+
+    return points_.n;
   }
 
   void clearPoints() { points_.clear(); }
