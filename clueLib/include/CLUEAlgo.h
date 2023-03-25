@@ -5,9 +5,7 @@
 #include <chrono>
 #include <fstream>
 #include <functional>
-#include <iostream>
 #include <set>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -61,37 +59,7 @@ class CLUEAlgo {
   void infoHits();
 
   void verboseResults(const std::string& outputFileName = "cout",
-      const unsigned nVerbose = -1) const {
-
-    if (!verbose_)
-      return;
-
-    unsigned int to_print = (nVerbose == -1 ? points_.n : nVerbose);
-
-    std::string header("index, x, y, layer, weight, rho, delta, nh, isSeed, clusterId\n");
-    std::string s;
-    char buffer[100];
-    for (unsigned i = 0; i < to_print; i++) {
-      snprintf(buffer, 100, "%d, %5.3f, %5.3f, %d, %5.3f, %5.3f, %5.3g, %d, %d, %d\n",
-          i, points_.x[i], points_.y[i], points_.layer[i], points_.weight[i],
-          points_.rho[i], points_.delta[i], points_.nearestHigher[i],
-          points_.isSeed[i], points_.clusterIndex[i]);
-      s += buffer;
-    }
-
-    if (outputFileName == "cout")  // verbose to screen
-      std::cout << header << s << std::endl;
-    else {  // verbose to file
-      std::ofstream outfile(outputFileName);
-      if (outfile.is_open()) {
-        outfile << header;
-        outfile << s;
-        outfile.close();
-      } else {
-        std::cerr << "Error: Unable to open file " << outputFileName << std::endl;
-      }
-    }
-  }
+                      const unsigned nVerbose = -1) const;
 
  private:
   // private member methods
