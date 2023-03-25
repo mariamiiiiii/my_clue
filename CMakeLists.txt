@@ -15,7 +15,7 @@ set(TBB_DIR "/cvmfs/cms.cern.ch/slc7_amd64_gcc820/external/tbb/2020_U2-ghbfee/cm
 set(CHECK_CUDA_VERSION ON CACHE BOOL "Check CUDA Runtime version.")
 
 # Activate VERBOSE output
-set(CMAKE_VERBOSE_MAKEFILE on)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Check for CUDA
 include(CheckLanguage)

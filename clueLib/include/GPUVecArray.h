@@ -1,10 +1,6 @@
 #ifndef GPUVecArray_h
 #define GPUVecArray_h
 
-//
-// Author: Felice Pantaleo, CERN
-//
-
 namespace GPU {
 
 template <class T, int maxSize>

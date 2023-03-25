@@ -4,7 +4,7 @@
 #include <optional>
 
 #include "CLUEAlgo.h"
-#include "LayerTilesAlpaka.h"
+#include "TilesAlpaka.h"
 
 #define DECLARE_TASKTYPE_AND_KERNEL(ACC, NAME, ...)         \
   struct Kernel##NAME {};                                   \
@@ -57,23 +57,34 @@ static const int maxNFollowers = 128;
 // trigger an exception.
 static const int localStackSizePerSeed = 128;
 
-template <typename TAcc>
-class CLUEAlgoAlpaka : public CLUEAlgo {
+// The type T is used to pass the number of bins in each dimension and the
+// allowed ranges spanned. Anchillary quantitied, like the inverse of the bin
+// width should also be provided. Code will not compile if any such information
+// is missing.
+template<typename TAcc, typename T, int NLAYERS>
+class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
  public:
   using Dim = alpaka::Dim<TAcc>;
   using Idx = alpaka::Idx<TAcc>;
 
-  template <typename T>
-  using BufAccT = alpaka::Buf<TAcc, T, Dim, Idx>;
+  template <typename TT>
+  using BufAccT = alpaka::Buf<TAcc, TT, Dim, Idx>;
 
-  template <typename T>
-  using ViewHostT = alpaka::ViewPlainPtr<alpaka::DevCpu, T, Dim, Idx>;
+  template <typename TT>
+  using ViewHostT = alpaka::ViewPlainPtr<alpaka::DevCpu, TT, Dim, Idx>;
 
-  using LayerTilesAcc = LayerTilesAlpaka<TAcc>;
+  using LayerTilesAcc = TilesAlpaka<TAcc, T>;
   using BufLayerTiles = BufAccT<LayerTilesAcc>;
 
   using BufVecArrSeeds = BufAccT<GPUAlpaka::VecArray<int, maxNSeeds>>;
   using BufVecArrFollowers = BufAccT<GPUAlpaka::VecArray<int, maxNFollowers>>;
+  //
+  // Bring base-class public variables into the scope of this template derived class
+  using CLUEAlgo<T, NLAYERS>::dc_;
+  using CLUEAlgo<T, NLAYERS>::rhoc_;
+  using CLUEAlgo<T, NLAYERS>::outlierDeltaFactor_;
+  using CLUEAlgo<T, NLAYERS>::verbose_;
+  using CLUEAlgo<T, NLAYERS>::points_;
 
   struct PointsBuf {
     // Input Buffers
@@ -107,7 +118,7 @@ class CLUEAlgoAlpaka : public CLUEAlgo {
       int *isSeed;
 
       // LayerTiles and utility data structures
-      LayerTilesAlpaka<TAcc> *hist_;
+      TilesAlpaka<TAcc, T> *hist_;
       GPUAlpaka::VecArray<int, maxNSeeds> *seeds_;
       GPUAlpaka::VecArray<int, maxNFollowers> *followers_;
     };
@@ -126,7 +137,7 @@ class CLUEAlgoAlpaka : public CLUEAlgo {
   };
 
   CLUEAlgoAlpaka(float dc, float rhoc, float outlierDeltaFactor, bool verbose)
-      : CLUEAlgo(dc, rhoc, outlierDeltaFactor, verbose),
+      : CLUEAlgo<T, NLAYERS>(dc, rhoc, outlierDeltaFactor, verbose),
         device_(alpaka::getDevByIdx<TAcc>(0u)),
         queue_(device_),
         host_(alpaka::getDevByIdx<alpaka::DevCpu>(0u)) {
@@ -231,9 +242,9 @@ class CLUEAlgoAlpaka : public CLUEAlgo {
   // std::vector. The size of the view is inferred from the size of the vector.
   // This means the view will, possibly, become invalid if, in the meantime,
   // the vector re-allocated its underlying storage.
-  template <typename T>
-  auto getViewHost(T &t) -> ViewHostT<typename T::value_type> {
-    using type = typename T::value_type;
+  template <typename TT>
+  auto getViewHost(TT &t) -> ViewHostT<typename TT::value_type> {
+    using type = typename TT::value_type;
     using Dim1 = alpaka::DimInt<1ul>;
     alpaka::Vec<Dim1, Idx> vectorSize(static_cast<Idx>(t.size()));
     ViewHostT<type> tempHostView(t.data(), host_, vectorSize);
@@ -304,10 +315,10 @@ class CLUEAlgoAlpaka : public CLUEAlgo {
   }
 };
 
-template <typename TAcc>
-auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
+template<typename TAcc, typename T, int NLAYERS>
+auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc,
-    CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelComputeHistogram dummy,
+    CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeHistogram dummy,
     int numberOfPoints) const -> void {
   const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
   if (i < numberOfPoints) {
@@ -316,10 +327,10 @@ auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
   }
 }
 
-template <typename TAcc>
-auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
+template<typename TAcc, typename T, int NLAYERS>
+auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc,
-    CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelComputeLocalDensity dummy,
+    CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeLocalDensity dummy,
     float dc, int numberOfPoints) const -> void {
   const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
   if (i < numberOfPoints) {
@@ -359,10 +370,10 @@ auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
   }
 }
 
-template <typename TAcc>
-auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
+template<typename TAcc, typename T, int NLAYERS>
+auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc,
-    CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelComputeDistanceToHigher dummy,
+    CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeDistanceToHigher dummy,
     float outlierDeltaFactor, float dc, int numberOfPoints) const -> void {
   const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
   float dm = outlierDeltaFactor * dc;
@@ -415,8 +426,8 @@ auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
   }
 }
 
-template <typename TAcc>
-auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(TAcc const &acc,
+template<typename TAcc, typename T, int NLAYERS>
+auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(TAcc const &acc,
                                                     KernelFindClusters dummy,
                                                     float outlierDeltaFactor,
                                                     float dc, float rhoc,
@@ -447,10 +458,10 @@ auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(TAcc const &acc,
   }
 }
 
-template <typename TAcc>
-auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
+template<typename TAcc, typename T, int NLAYERS>
+auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc,
-    CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelAssignClusters dummy) const
+    CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelAssignClusters dummy) const
     -> void {
   const Idx idxCls(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
 
@@ -495,8 +506,8 @@ auto CLUEAlgoAlpaka<TAcc>::DeviceRunner::operator()(
   }
 }
 
-template <typename TAcc>
-void CLUEAlgoAlpaka<TAcc>::makeClusters() {
+template<typename TAcc, typename T, int NLAYERS>
+void CLUEAlgoAlpaka<TAcc, T, NLAYERS>::makeClusters() {
   copy_todevice();
   clear_set();
 
@@ -511,31 +522,31 @@ void CLUEAlgoAlpaka<TAcc>::makeClusters() {
   std::cout << manualWorkDiv << std::endl;
 
   // Create the kernel execution tasks.
-  typename CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelComputeHistogram
+  typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeHistogram
       taskComputeHistogram;
   auto const kernelComputeHistogram = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskComputeHistogram,
       static_cast<int>(points_.x.size())));
 
-  typename CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelComputeLocalDensity
+  typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeLocalDensity
       taskComputeLocalDensity;
   auto const kernelComputeLocalDensity = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskComputeLocalDensity, dc_,
       static_cast<int>(points_.x.size())));
 
-  typename CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelComputeDistanceToHigher
+  typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeDistanceToHigher
       taskComputeDistanceToHigher;
   auto const kernelComputeDistanceToHigher = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskComputeDistanceToHigher,
       outlierDeltaFactor_, dc_, static_cast<int>(points_.x.size())));
 
-  typename CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelFindClusters
+  typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelFindClusters
       taskFindClusters;
   auto const kernelFindClusters = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskFindClusters, outlierDeltaFactor_, dc_,
       rhoc_, static_cast<int>(points_.x.size())));
 
-  typename CLUEAlgoAlpaka<TAcc>::DeviceRunner::KernelAssignClusters
+  typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelAssignClusters
       taskAssignClusters;
   auto const kernelAssignClusters = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskAssignClusters));

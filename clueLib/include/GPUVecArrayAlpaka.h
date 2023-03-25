@@ -1,10 +1,6 @@
 #ifndef GPUVecArrayAlpaka_h
 #define GPUVecArrayAlpaka_h
 
-//
-// Author: Felice Pantaleo, CERN
-//
-
 namespace GPUAlpaka {
 
 template <class T, int maxSize>
