@@ -569,8 +569,8 @@ void CLUEAlgoAlpaka<TAcc>::makeClusters() {
   // time actual kernel runtime
   finish = std::chrono::high_resolution_clock::now();
   elapsed = finish - start;
-  std::cout << "--- computeDistanceToHigher:            " << elapsed.count() * 1000
-            << "ms\n";
+  std::cout << "--- computeDistanceToHigher:            "
+            << elapsed.count() * 1000 << "ms\n";
 
   start = std::chrono::high_resolution_clock::now();
   alpaka::enqueue(queue_, kernelFindClusters);
