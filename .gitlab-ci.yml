@@ -1,0 +1,27 @@
+image: gitlab-registry.cern.ch/ci-tools/ci-worker:cc7
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  tags:
+    # Want cvmfs mounted for TBB
+    - cvmfs
+  variables:
+    # Locally download ALPAKA as submodule
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    # We need to have all the needed software available. Use central sft.cern.ch/LCG.
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102/x86_64-centos7-gcc11-opt/setup.sh
+    - mkdir build && cd build
+    - pwd
+    - cmake --version
+    - cmake ../ -DCHECK_CUDA_VERSION=OFF
+    - cmake --build .
+
+test:
+  stage: test
+  script:
+    - pwd
