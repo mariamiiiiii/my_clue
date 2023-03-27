@@ -160,7 +160,7 @@ int main(int argc, char *argv[]) {
   bool use_accelerator = false;
   bool verbose = false;
   float dc = 20.f, rhoc = 80.f, outlierDeltaFactor = 2.f;
-  int totalNumberOfEvent = 10;
+  int repeats = 10;
   int TBBNumberOfThread = 1;
   int opt;
   std::string inputFileName;
@@ -179,8 +179,8 @@ int main(int argc, char *argv[]) {
       case 'o': /* outlier factor */
         outlierDeltaFactor = stof(string(optarg));
         break;
-      case 'e': /* number of events */
-        totalNumberOfEvent = stoi(string(optarg));
+      case 'e': /* number of repeated session(s) a the selected input file */
+        repeats = stoi(string(optarg));
         break;
       case 't': /* number of TBB threads */
         TBBNumberOfThread = stoi(string(optarg));
@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
         break;
       default:
         std::cout << "bin/main -i [fileName] -d [dc] -r [rhoc] -o "
-                     "[outlierDeltaFactor] -e [totalNumberOfEvent] -t "
+                     "[outlierDeltaFactor] -e [repeats] -t "
                      "[NumTBBThreads] -u -v"
                   << std::endl;
         exit(EXIT_FAILURE);
@@ -223,7 +223,7 @@ int main(int argc, char *argv[]) {
   // MARK -- test run
   //////////////////////////////
   mainRun(inputFileName, outputFileName, dc, rhoc, outlierDeltaFactor,
-          use_accelerator, totalNumberOfEvent, verbose);
+          use_accelerator, repeats, verbose);
 
   return 0;
 }
