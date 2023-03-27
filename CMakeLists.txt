@@ -62,14 +62,14 @@ add_subdirectory(src)
 
 # SOME TESTS
 enable_testing()
-function(run_test_cpu repeats)
+function(run_test_cpu target repeats)
   FILE(GLOB inputs "${CMAKE_CURRENT_SOURCE_DIR}/data/input/*.csv")
   foreach(input_file IN LISTS inputs)
-    add_test(NAME ${input_file}_cpu COMMAND ./src/clue/main -i ${input_file} -d 7.0 -r10.0 -o 2 -e ${repeats} -v)
+    add_test(NAME ${input_file}_CPU COMMAND ${target} -i ${input_file} -d 7.0 -r10.0 -o 2 -e ${repeats} -v)
   endforeach()
 endfunction()
 
-run_test_cpu(4)
+run_test_cpu(./src/clue_tbb_alpaka/mainAlpakaTBB 4)
 
 #--- add version files ---------------------------------------------------------
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CLUEVersion.h
