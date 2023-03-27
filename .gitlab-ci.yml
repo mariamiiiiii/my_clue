@@ -40,5 +40,5 @@ sample-cpu:
     - mkdir build && cd build
     - cmake ../ -DCHECK_CUDA_VERSION=OFF
     - cmake --build .
-    - ctest
+    - ctest -R '.*CPU$'
 
