@@ -1,78 +1,79 @@
 sample-cpu:
   image: gitlab-registry.cern.ch/ci-tools/ci-worker:cc7
+  extends:
+    - .build
+    - .test
 
-  stages:
-    - build
-    - test
 
-  build:
-    stage: build
-    tags:
-      # Want cvmfs mounted for TBB
-      - cvmfs
-    variables:
-      # Locally download ALPAKA as submodule
-      GIT_SUBMODULE_STRATEGY: recursive
-    script:
-      # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-      - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
-      - mkdir build && cd build
-      - cmake ../ -DCHECK_CUDA_VERSION=OFF
-      - cmake --build .
+# sample-gpu-nvidia-t4:
+#   image: rochaporto/gpu_burn
+#   tags:
+#     - docker-gpu-t4
+#
+#   stages:
+#     - build
+#     - test
+#
+#   build:
+#     stage: build
+#     tags:
+#       # Want cvmfs mounted for TBB
+#       - cvmfs
+#     variables:
+#       # Locally download ALPAKA as submodule
+#       GIT_SUBMODULE_STRATEGY: recursive
+#     script:
+#       # We need to have all the needed software available. Use central sft.cern.ch/LCG.
+#       - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
+#       - mkdir build && cd build
+#       - cmake ../ -DCHECK_CUDA_VERSION=OFF
+#       - cmake --build .
+#
+#   test:
+#     stage: test
+#     tags:
+#       # Want cvmfs mounted for TBB
+#       - cvmfs
+#     variables:
+#       # Locally download ALPAKA as submodule
+#       GIT_SUBMODULE_STRATEGY: recursive
+#     script:
+#       # We need to have all the needed software available. Use central sft.cern.ch/LCG.
+#       - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
+#       - mkdir build && cd build
+#       - cmake ../ -DCHECK_CUDA_VERSION=OFF
+#       - cmake --build .
+#       - ctest
 
-  test:
-    stage: test
-    tags:
-      # Want cvmfs mounted for TBB
-      - cvmfs
-    variables:
-      # Locally download ALPAKA as submodule
-      GIT_SUBMODULE_STRATEGY: recursive
-    script:
-      # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-      - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
-      - mkdir build && cd build
-      - cmake ../ -DCHECK_CUDA_VERSION=OFF
-      - cmake --build .
-      - ctest
 
-sample-gpu-nvidia-t4:
-  image: rochaporto/gpu_burn
+.build:
+  stage: build
   tags:
-    - docker-gpu-t4
+    # Want cvmfs mounted for TBB
+    - cvmfs
+  variables:
+    # Locally download ALPAKA as submodule
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    # We need to have all the needed software available. Use central sft.cern.ch/LCG.
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
+    - mkdir build && cd build
+    - cmake ../ -DCHECK_CUDA_VERSION=OFF
+    - cmake --build .
 
-  stages:
-    - build
-    - test
-
-  build:
-    stage: build
-    tags:
-      # Want cvmfs mounted for TBB
-      - cvmfs
-    variables:
-      # Locally download ALPAKA as submodule
-      GIT_SUBMODULE_STRATEGY: recursive
-    script:
-      # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-      - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
-      - mkdir build && cd build
-      - cmake ../ -DCHECK_CUDA_VERSION=OFF
-      - cmake --build .
-
-  test:
-    stage: test
-    tags:
-      # Want cvmfs mounted for TBB
-      - cvmfs
-    variables:
-      # Locally download ALPAKA as submodule
-      GIT_SUBMODULE_STRATEGY: recursive
-    script:
-      # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-      - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
-      - mkdir build && cd build
-      - cmake ../ -DCHECK_CUDA_VERSION=OFF
-      - cmake --build .
-      - ctest
+.test:
+  stage: test
+  tags:
+    # Want cvmfs mounted for TBB
+    - cvmfs
+  variables:
+    # Locally download ALPAKA as submodule
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    # We need to have all the needed software available. Use central sft.cern.ch/LCG.
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
+    - mkdir build && cd build
+    - cmake ../ -DCHECK_CUDA_VERSION=OFF
+    - cmake --build .
+    - ctest
 
