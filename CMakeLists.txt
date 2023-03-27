@@ -69,7 +69,11 @@ function(run_test_cpu target repeats)
   endforeach()
 endfunction()
 
-run_test_cpu(./src/clue_tbb_alpaka/mainAlpakaTBB 4)
+if(CMAKE_CUDA_COMPILER)
+  run_test_cpu(./src/clue/main 4)
+else()
+  run_test_cpu(./src/clue_tbb_alpaka/mainAlpakaTBB 4)
+endif()
 
 #--- add version files ---------------------------------------------------------
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CLUEVersion.h
