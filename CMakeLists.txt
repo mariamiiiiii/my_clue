@@ -60,6 +60,17 @@ endif()
 add_subdirectory(clueLib)
 add_subdirectory(src)
 
+# SOME TESTS
+enable_testing()
+function(run_test_cpu repeats)
+  FILE(GLOB inputs "${CMAKE_CURRENT_SOURCE_DIR}/data/input/*.csv")
+  foreach(input_file IN LISTS inputs)
+    add_test(NAME ${input_file}_cpu COMMAND ./src/clue/main -i ${input_file} -d 7.0 -r10.0 -o 2 -e ${repeats} -v)
+  endforeach()
+endfunction()
+
+run_test_cpu(4)
+
 #--- add version files ---------------------------------------------------------
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CLUEVersion.h
                ${CMAKE_CURRENT_BINARY_DIR}/CLUEVersion.h )
