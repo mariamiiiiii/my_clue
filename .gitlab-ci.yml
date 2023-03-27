@@ -14,7 +14,7 @@ build:
     GIT_SUBMODULE_STRATEGY: recursive
   script:
     # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102/x86_64-centos7-gcc11-opt/setup.sh
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
     - mkdir build && cd build
     - cmake ../ -DCHECK_CUDA_VERSION=OFF
     - cmake --build .
@@ -29,7 +29,7 @@ test:
     GIT_SUBMODULE_STRATEGY: recursive
   script:
     # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102/x86_64-centos7-gcc11-opt/setup.sh
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
     - mkdir build && cd build
     - cmake ../ -DCHECK_CUDA_VERSION=OFF
     - cmake --build .
