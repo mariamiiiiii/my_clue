@@ -4,12 +4,12 @@ sample-cpu:
     - .build
     - .test
 
-sample-gpu-nvidia-t4:
-  image: rochaporto/gpu_burn
-  tags:
-    - docker-gpu-t4
-  extends:
-    - .test
+# sample-gpu-nvidia-t4:
+#   image: rochaporto/gpu_burn
+#   tags:
+#     - docker-gpu-t4
+#   extends:
+#     - .test
 
 .build:
   stage: build
