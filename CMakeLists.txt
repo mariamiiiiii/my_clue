@@ -62,17 +62,27 @@ add_subdirectory(src)
 
 # SOME TESTS
 enable_testing()
-function(run_test_cpu target repeats)
+function(run_test_cpu target label repeats)
   FILE(GLOB inputs "${CMAKE_CURRENT_SOURCE_DIR}/data/input/*.csv")
   foreach(input_file IN LISTS inputs)
-    add_test(NAME ${input_file}_CPU COMMAND ${target} -i ${input_file} -d 7.0 -r10.0 -o 2 -e ${repeats} -v)
+    add_test(NAME ${input_file}_${label}_CPU COMMAND ${target} -i ${input_file} -d 7.0 -r10.0 -o 2 -e ${repeats} -v)
+  endforeach()
+endfunction()
+
+function(run_test_gpu target label repeats)
+  FILE(GLOB inputs "${CMAKE_CURRENT_SOURCE_DIR}/data/input/*.csv")
+  foreach(input_file IN LISTS inputs)
+    add_test(NAME ${input_file}_${label}_GPU COMMAND ${target} -i ${input_file} -d 7.0 -r10.0 -o 2 -e ${repeats} -v -u)
   endforeach()
 endfunction()
 
 if(CMAKE_CUDA_COMPILER)
-  run_test_cpu(./src/clue/main 4)
+  run_test_cpu(./src/clue/main main 4)
+  run_test_cpu(./src/clue_cuda_alpaka/mainAlpakaCUDA Alpaka 4)
+  run_test_gpu(./src/clue/main CUDA 100)
+  run_test_gpu(./src/clue_cuda_alpaka/mainAlpakaCUDA AlpakaCUDA 100)
 else()
-  run_test_cpu(./src/clue_tbb_alpaka/mainAlpakaTBB 4)
+  run_test_cpu(./src/clue_tbb_alpaka/mainAlpakaTBB TBB 4)
 endif()
 
 #--- add version files ---------------------------------------------------------
