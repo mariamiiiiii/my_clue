@@ -108,17 +108,17 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
 
   void copy_todevice() {
     // input variables
-    cudaMemcpy(d_points.x, points_.x.data(), sizeof(float) * points_.n,
+    cudaMemcpy(d_points.x, points_.p_x, sizeof(float) * points_.n,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_points.y, points_.y.data(), sizeof(float) * points_.n,
+    cudaMemcpy(d_points.y, points_.p_y, sizeof(float) * points_.n,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_points.layer, points_.layer.data(), sizeof(int) * points_.n,
+    cudaMemcpy(d_points.layer, points_.p_layer, sizeof(int) * points_.n,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_points.weight, points_.weight.data(),
+    cudaMemcpy(d_points.weight, points_.p_weight,
                sizeof(float) * points_.n, cudaMemcpyHostToDevice);
   }
 
-  void clear_set() {
+  void clear_internal_buffers() {
     // // result variables
     cudaMemset(d_points.rho, 0x00, sizeof(float) * points_.n);
     cudaMemset(d_points.delta, 0x00, sizeof(float) * points_.n);
@@ -151,7 +151,6 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
 
   // #endif // __CUDACC__
 };
-
 
 template<typename T>
 __global__ void kernel_compute_histogram(TilesGPU<T>* d_hist,
@@ -335,7 +334,7 @@ __global__ void kernel_assign_clusters(
 template<typename T, int NLAYERS>
 void CLUEAlgoGPU<T, NLAYERS>::makeClusters() {
   copy_todevice();
-  clear_set();
+  clear_internal_buffers();
 
   ////////////////////////////////////////////
   // calculate rho, delta and find seeds

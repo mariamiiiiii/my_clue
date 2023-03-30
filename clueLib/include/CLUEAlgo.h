@@ -33,28 +33,93 @@ class CLUEAlgo {
 
   Points points_;
 
-  int setPoints(int n, float* x, float* y, int* layer, float* weight) {
+  int copyPoints(int n, float* x, float* y, int* layer, float* weight) {
     points_.clear();
-    // input variables
-    for (int i = 0; i < n; ++i) {
-      points_.x.push_back(x[i]);
-      points_.y.push_back(y[i]);
-      points_.layer.push_back(layer[i]);
-      points_.weight.push_back(weight[i]);
-    }
+    // Reserve, first
+    points_.n = n;
+    points_.x.resize(n);
+    points_.y.resize(n);
+    points_.layer.resize(n);
+    points_.weight.resize(n);
+    // Copy, next
+    std::copy(x, x+n, std::begin(points_.x));
+    std::copy(y, y+n, std::begin(points_.y));
+    std::copy(layer, layer+n, std::begin(points_.layer));
+    std::copy(weight, weight+n, std::begin(points_.weight));
 
-    points_.n = points_.x.size();
+    points_.p_x = points_.x.data();
+    points_.p_y = points_.y.data();
+    points_.p_layer = points_.layer.data();
+    points_.p_weight = points_.weight.data();
 
-    // result variables
-    points_.rho.resize(points_.n, 0);
-    points_.delta.resize(points_.n, std::numeric_limits<float>::max());
-    points_.nearestHigher.resize(points_.n, -1);
-    points_.followers.resize(points_.n);
-    points_.clusterIndex.resize(points_.n, -1);
-    points_.isSeed.resize(points_.n, 0);
+    resizeOutputContainers();
 
     return points_.n;
   }
+
+  int copyPoints(const std::vector<float> &x, const std::vector<float> &y,
+      const std::vector<int> & layer, const std::vector<float> & weight) {
+    points_.clear();
+    auto const n = x.size();
+    points_.n = n;
+    // input variables
+    points_.x.resize(n);
+    std::copy(std::begin(x), std::end(x), std::begin(points_.x));
+
+    points_.y.resize(n);
+    std::copy(std::begin(y), std::end(y), std::begin(points_.y));
+
+    points_.layer.resize(n);
+    std::copy(std::begin(layer), std::end(layer), std::begin(points_.layer));
+
+    points_.weight.resize(n);
+    std::copy(std::begin(weight), std::end(weight), std::begin(points_.weight));
+
+    points_.p_x = points_.x.data();
+    points_.p_y = points_.y.data();
+    points_.p_layer = points_.layer.data();
+    points_.p_weight = points_.weight.data();
+
+    resizeOutputContainers();
+
+    return points_.n;
+  }
+
+  int setPoints(int n, const float* x, const float* y, const int* layer, const float* weight) {
+    points_.clear();
+    points_.n = n;
+    points_.p_x = x;
+    points_.p_y = y;
+    points_.p_layer = layer;
+    points_.p_weight = weight;
+
+    resizeOutputContainers();
+
+    return n;
+  }
+
+  int setPoints(std::vector<float> &x, std::vector<float> &y,
+      std::vector<int> & layer, std::vector<float> & weight) {
+    points_.clear();
+    auto const n = x.size();
+    points_.n = n;
+    // input variables
+    points_.n = n;
+    points_.x.swap(x);
+    points_.y.swap(y);
+    points_.layer.swap(layer);
+    points_.weight.swap(weight);
+
+    points_.p_x = points_.x.data();
+    points_.p_y = points_.y.data();
+    points_.p_layer = points_.layer.data();
+    points_.p_weight = points_.weight.data();
+
+    resizeOutputContainers();
+
+    return points_.n;
+  }
+
 
   void clearPoints() { points_.clear(); }
 
@@ -73,7 +138,20 @@ class CLUEAlgo {
   void calculateDistanceToHigher(std::array<Tiles<T>, NLAYERS>&);
   void findAndAssignClusters();
   inline float distance(int, int) const;
+  void resizeOutputContainers();
 };
+
+template<typename T, int NLAYERS>
+void CLUEAlgo<T, NLAYERS>::resizeOutputContainers() {
+
+    // result variables
+    points_.rho.resize(points_.n, 0);
+    points_.delta.resize(points_.n, std::numeric_limits<float>::max());
+    points_.nearestHigher.resize(points_.n, -1);
+    points_.followers.resize(points_.n);
+    points_.clusterIndex.resize(points_.n, -1);
+    points_.isSeed.resize(points_.n, 0);
+}
 
 template<typename T, int NLAYERS>
 void CLUEAlgo<T, NLAYERS>::verboseResults(const std::string& outputFileName /* "cout" */,
@@ -89,7 +167,7 @@ void CLUEAlgo<T, NLAYERS>::verboseResults(const std::string& outputFileName /* "
   for (unsigned i = 0; i < to_print; i++) {
     snprintf(buffer, 100,
              "%d, %5.3f, %5.3f, %d, %5.3f, %5.3f, %5.3g, %d, %d, %d\n", i,
-             points_.x[i], points_.y[i], points_.layer[i], points_.weight[i],
+             points_.p_x[i], points_.p_y[i], points_.p_layer[i], points_.p_weight[i],
              points_.rho[i], points_.delta[i], points_.nearestHigher[i],
              points_.isSeed[i], points_.clusterIndex[i]);
     s += buffer;
@@ -140,7 +218,7 @@ template<typename T, int NLAYERS>
 void CLUEAlgo<T, NLAYERS>::prepareDataStructures( std::array<Tiles<T>, NLAYERS> & allLayerTiles ){
   for (int i=0; i<points_.n; i++){
     // push index of points into tiles
-    allLayerTiles[points_.layer[i]].fill( points_.x[i], points_.y[i], i);
+    allLayerTiles[points_.p_layer[i]].fill( points_.p_x[i], points_.p_y[i], i);
   }
 }
 
@@ -150,10 +228,10 @@ void CLUEAlgo<T, NLAYERS>::calculateLocalDensity( std::array<Tiles<T>, NLAYERS> 
 
   // loop over all points
   for(unsigned i = 0; i < points_.n; i++) {
-    Tiles<T>& lt = allLayerTiles[points_.layer[i]];
+    Tiles<T>& lt = allLayerTiles[points_.p_layer[i]];
 
     // get search box
-    std::array<int,4> search_box = lt.searchBox(points_.x[i]-dc_, points_.x[i]+dc_, points_.y[i]-dc_, points_.y[i]+dc_);
+    std::array<int,4> search_box = lt.searchBox(points_.p_x[i]-dc_, points_.p_x[i]+dc_, points_.p_y[i]-dc_, points_.p_y[i]+dc_);
 
     // loop over bins in the search box
     for(int xBin = search_box[0]; xBin < search_box[1]+1; ++xBin) {
@@ -171,7 +249,7 @@ void CLUEAlgo<T, NLAYERS>::calculateLocalDensity( std::array<Tiles<T>, NLAYERS> 
           float dist_ij = distance(i, j);
           if(dist_ij <= dc_) {
             // sum weights within N_{dc_}(i)
-            points_.rho[i] += (i == j ? 1.f : 0.5f) * points_.weight[j];
+            points_.rho[i] += (i == j ? 1.f : 0.5f) * points_.p_weight[j];
           }
         } // end of interate inside this bin
 
@@ -189,12 +267,12 @@ void CLUEAlgo<T, NLAYERS>::calculateDistanceToHigher( std::array<Tiles<T>, NLAYE
     // default values of delta and nearest higher for i
     float delta_i = std::numeric_limits<float>::max();
     int nearestHigher_i = -1;
-    float xi = points_.x[i];
-    float yi = points_.y[i];
+    float xi = points_.p_x[i];
+    float yi = points_.p_y[i];
     float rho_i = points_.rho[i];
 
     //get search box
-    Tiles<T>& lt = allLayerTiles[points_.layer[i]];
+    Tiles<T>& lt = allLayerTiles[points_.p_layer[i]];
     std::array<int,4> search_box = lt.searchBox(xi-dm, xi+dm, yi-dm, yi+dm);
 
     // loop over all bins in the search box
@@ -251,21 +329,21 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters(){
     bool isSeed = (deltai > dc_) and (rhoi >= rhoc_);
     bool isOutlier = (deltai > outlierDeltaFactor_ * dc_) and (rhoi < rhoc_);
     if (isSeed)
-      {
-	// set isSeed as 1
-	points_.isSeed[i] = 1;
-	// set cluster id
-	points_.clusterIndex[i] = nClusters;
-	// increment number of clusters
-	nClusters++;
-	// add seed into local stack
-	localStack.push_back(i);
-      }
+    {
+      // set isSeed as 1
+      points_.isSeed[i] = 1;
+      // set cluster id
+      points_.clusterIndex[i] = nClusters;
+      // increment number of clusters
+      nClusters++;
+      // add seed into local stack
+      localStack.push_back(i);
+    }
     else if (!isOutlier)
-      {
-	// register as follower at its nearest higher
-	points_.followers[points_.nearestHigher[i]].push_back(i);
-      }
+    {
+      // register as follower at its nearest higher
+      points_.followers[points_.nearestHigher[i]].push_back(i);
+    }
   }
 
   auto finish = std::chrono::high_resolution_clock::now();
@@ -290,20 +368,17 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters(){
   finish = std::chrono::high_resolution_clock::now();
   elapsed = finish - start;
   std::cout << "--- assignClusters:            " << elapsed.count() *1000 << " ms\n";
-
 }
 
 template<typename T, int NLAYERS>
 inline float CLUEAlgo<T, NLAYERS>::distance(int i, int j) const {
 
   // 2-d distance on the layer
-  if(points_.layer[i] == points_.layer[j] ) {
-    const float dx = points_.x[i] - points_.x[j];
-    const float dy = points_.y[i] - points_.y[j];
-    return std::sqrt(dx * dx + dy * dy);
-  } else {
-    return std::numeric_limits<float>::max();
-  }
+
+  //assert(points_.p_layer[i] == points_.p_layer[j]);
+  const float dx = points_.p_x[i] - points_.p_x[j];
+  const float dy = points_.p_y[i] - points_.p_y[j];
+  return std::sqrt(dx * dx + dy * dy);
 }
 
 #endif

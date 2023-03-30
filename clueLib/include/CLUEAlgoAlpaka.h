@@ -251,26 +251,34 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
     return tempHostView;
   }
 
+  template <typename TT>
+  auto getViewHost(TT *t, int size) -> ViewHostT<TT> {
+    using Dim1 = alpaka::DimInt<1ul>;
+    alpaka::Vec<Dim1, Idx> vectorSize(static_cast<Idx>(size));
+    ViewHostT<TT> tempHostView(t, host_, vectorSize);
+    return tempHostView;
+  }
+
   void copy_todevice() {
     // input variables
     using Dim1 = alpaka::DimInt<1ul>;
     alpaka::Vec<Dim1, Idx> const extentToTransfer(
-        static_cast<Idx>(points_.x.size()));
-    alpaka::memcpy(queue_, device_bufs_.x.value(), getViewHost(points_.x),
+        static_cast<Idx>(points_.n));
+    alpaka::memcpy(queue_, device_bufs_.x.value(), getViewHost(points_.p_x, points_.n),
                    extentToTransfer);
-    alpaka::memcpy(queue_, device_bufs_.y.value(), getViewHost(points_.y),
+    alpaka::memcpy(queue_, device_bufs_.y.value(), getViewHost(points_.p_y, points_.n),
                    extentToTransfer);
     alpaka::memcpy(queue_, device_bufs_.layer.value(),
-                   getViewHost(points_.layer), extentToTransfer);
+                   getViewHost(points_.p_layer, points_.n), extentToTransfer);
     alpaka::memcpy(queue_, device_bufs_.weight.value(),
-                   getViewHost(points_.weight), extentToTransfer);
+                   getViewHost(points_.p_weight, points_.n), extentToTransfer);
     alpaka::wait(queue_);
   }
 
-  void clear_set() {
+  void clear_internal_buffers() {
     // result variables
     using Dim1 = alpaka::DimInt<1ul>;
-    alpaka::Vec<Dim1, Idx> extents(static_cast<Idx>(points_.x.size()));
+    alpaka::Vec<Dim1, Idx> extents(static_cast<Idx>(points_.n));
     alpaka::memset(queue_, device_bufs_.rho.value(), 0x0, extents);
     alpaka::memset(queue_, device_bufs_.delta.value(), 0x0, extents);
     alpaka::memset(queue_, device_bufs_.nearestHigher.value(), 0x0, extents);
@@ -291,7 +299,7 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
   void copy_tohost() {
     // result variables
     using Dim1 = alpaka::DimInt<1ul>;
-    alpaka::Vec<Dim1, Idx> extents(static_cast<Idx>(points_.x.size()));
+    alpaka::Vec<Dim1, Idx> extents(static_cast<Idx>(points_.n));
 
     auto clusterHV = getViewHost(points_.clusterIndex);
     alpaka::memcpy(queue_, clusterHV, device_bufs_.clusterIndex.value(),
@@ -509,7 +517,7 @@ auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
 template<typename TAcc, typename T, int NLAYERS>
 void CLUEAlgoAlpaka<TAcc, T, NLAYERS>::makeClusters() {
   copy_todevice();
-  clear_set();
+  clear_internal_buffers();
 
   // Dimension the grid for submission
   alpaka::Vec<Dim, Idx> const threadsPerBlock(1024u);
@@ -526,25 +534,25 @@ void CLUEAlgoAlpaka<TAcc, T, NLAYERS>::makeClusters() {
       taskComputeHistogram;
   auto const kernelComputeHistogram = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskComputeHistogram,
-      static_cast<int>(points_.x.size())));
+      static_cast<int>(points_.n)));
 
   typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeLocalDensity
       taskComputeLocalDensity;
   auto const kernelComputeLocalDensity = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskComputeLocalDensity, dc_,
-      static_cast<int>(points_.x.size())));
+      static_cast<int>(points_.n)));
 
   typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeDistanceToHigher
       taskComputeDistanceToHigher;
   auto const kernelComputeDistanceToHigher = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskComputeDistanceToHigher,
-      outlierDeltaFactor_, dc_, static_cast<int>(points_.x.size())));
+      outlierDeltaFactor_, dc_, static_cast<int>(points_.n)));
 
   typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelFindClusters
       taskFindClusters;
   auto const kernelFindClusters = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskFindClusters, outlierDeltaFactor_, dc_,
-      rhoc_, static_cast<int>(points_.x.size())));
+      rhoc_, static_cast<int>(points_.n)));
 
   typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelAssignClusters
       taskAssignClusters;
