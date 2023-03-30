@@ -9,7 +9,6 @@
 #include "GPUVecArrayAlpaka.h"
 #include "TilesConstants.h"
 
-
 #if !defined(ALPAKA_ACC_GPU_CUDA_ENABLED) && \
     !defined(ALPAKA_ACC_GPU_HIP_ENABLED)
 struct int4 {
@@ -20,7 +19,7 @@ struct int4 {
 template <typename Acc, typename T>
 class TilesAlpaka {
  public:
-   using GPUVect = GPUAlpaka::VecArray<int, T::maxTileDepth>;
+  using GPUVect = GPUAlpaka::VecArray<int, T::maxTileDepth>;
   // constructor
   TilesAlpaka(const Acc& acc) { acc_ = acc; };
 
@@ -58,7 +57,7 @@ class TilesAlpaka {
   }
 
   ALPAKA_FN_HOST_ACC int4 searchBox(float dim1_min, float dim1_max,
-      float dim2_min, float dim2_max) {
+                                    float dim2_min, float dim2_max) {
     int Bin1Min = getDim1Bin(dim1_min);
     int Bin1Max = getDim1Bin(dim1_max);
     int Bin2Min = getDim2Bin(dim2_min);

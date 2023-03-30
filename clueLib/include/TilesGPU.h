@@ -16,7 +16,7 @@
 // allowed ranges spanned. Anchillary quantitied, like the inverse of the bin
 // width should also be provided. Code will not compile if any such information
 // is missing.
-template<typename T>
+template <typename T>
 class TilesGPU {
  public:
   // constructor
@@ -42,13 +42,12 @@ class TilesGPU {
     return getDim1Bin(x) + getDim2Bin(y) * T::nColumns;
   }
 
-  __host__ __device__ int getGlobalBinByBin(int dim1_bin,
-      int dim2_bin) const {
+  __host__ __device__ int getGlobalBinByBin(int dim1_bin, int dim2_bin) const {
     return dim1_bin + dim2_bin * T::nColumns;
   }
 
   __host__ __device__ int4 searchBox(float dim1_min, float dim1_max,
-      float dim2_min, float dim2_max) {
+                                     float dim2_min, float dim2_max) {
     int Bin1Min = getDim1Bin(dim1_min);
     int Bin1Max = getDim1Bin(dim1_max);
     int Bin2Min = getDim2Bin(dim2_min);
@@ -60,14 +59,12 @@ class TilesGPU {
     for (auto& t : tiles_) t.reset();
   }
 
-  __host__ __device__ GPU::VecArray<int, T::maxTileDepth>&
-  operator[](int globalBinId) {
+  __host__ __device__ GPU::VecArray<int, T::maxTileDepth>& operator[](
+      int globalBinId) {
     return tiles_[globalBinId];
   }
 
  private:
-  GPU::VecArray<GPU::VecArray<int, T::maxTileDepth>,
-                T::nTiles>
-      tiles_;
+  GPU::VecArray<GPU::VecArray<int, T::maxTileDepth>, T::nTiles> tiles_;
 };
 #endif

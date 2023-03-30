@@ -14,14 +14,12 @@
 // allowed ranges spanned. Anchillary quantitied, like the inverse of the bin
 // width should also be provided. Code will not compile if any such information
 // is missing.
-template<typename T>
+template <typename T>
 class Tiles {
  public:
-   typedef T type;
+  typedef T type;
 
-  Tiles() {
-    tiles_.resize(T::nTiles);
-  }
+  Tiles() { tiles_.resize(T::nTiles); }
 
   void fill(const std::vector<float>& x, const std::vector<float>& y) {
     auto cellsSize = x.size();
@@ -54,8 +52,8 @@ class Tiles {
     return dim1_bin + dim2_bin * T::nColumns;
   }
 
-  std::array<int, 4> searchBox(float dim1_min, float dim1_max,
-      float dim2_min, float dim2_max) {
+  std::array<int, 4> searchBox(float dim1_min, float dim1_max, float dim2_min,
+                               float dim2_max) {
     int Bin1Min = getDim1Bin(dim1_min);
     int Bin1Max = getDim1Bin(dim1_max);
     int Bin2Min = getDim2Bin(dim2_min);
@@ -69,9 +67,7 @@ class Tiles {
     }
   }
 
-  std::vector<int>& operator[](int globalBinId) {
-    return tiles_[globalBinId];
-  }
+  std::vector<int>& operator[](int globalBinId) { return tiles_[globalBinId]; }
 
  private:
   std::vector<std::vector<int>> tiles_;

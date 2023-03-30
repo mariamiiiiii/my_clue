@@ -92,7 +92,8 @@ void mainRun(const std::string &inputFileName,
   if (use_accelerator) {
 #if !defined(USE_ALPAKA)
     std::cout << "Native CUDA Backend selected" << std::endl;
-    CLUEAlgoGPU<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
+    CLUEAlgoGPU<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor,
+                                                  verbose);
     for (unsigned r = 0; r < repeats; r++) {
       if (!clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
         exit(EXIT_FAILURE);
@@ -114,7 +115,8 @@ void mainRun(const std::string &inputFileName,
     using Dim = alpaka::DimInt<1u>;
     using Idx = uint32_t;
     using Acc = SelectedAcc<Dim, Idx>;
-    CLUEAlgoAlpaka<Acc, TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
+    CLUEAlgoAlpaka<Acc, TilesConstants, NLAYERS> clueAlgo(
+        dc, rhoc, outlierDeltaFactor, verbose);
     for (unsigned r = 0; r < repeats; r++) {
       if (!clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
         exit(EXIT_FAILURE);
@@ -131,14 +133,16 @@ void mainRun(const std::string &inputFileName,
 #endif
   } else {
     std::cout << "Native CPU(serial) Backend selected" << std::endl;
-    CLUEAlgo<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
+    CLUEAlgo<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor,
+                                               verbose);
     for (int r = 0; r < repeats; r++) {
-//      if (!clueAlgo.copyPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
-//        exit(EXIT_FAILURE);
-//      if (!clueAlgo.copyPoints(x, y, layer, weight))
-//        exit(EXIT_FAILURE);
-//      if (!clueAlgo.setPoints(x, y, layer, weight))
-//        exit(EXIT_FAILURE);
+      //      if (!clueAlgo.copyPoints(x.size(), &x[0], &y[0], &layer[0],
+      //      &weight[0]))
+      //        exit(EXIT_FAILURE);
+      //      if (!clueAlgo.copyPoints(x, y, layer, weight))
+      //        exit(EXIT_FAILURE);
+      //      if (!clueAlgo.setPoints(x, y, layer, weight))
+      //        exit(EXIT_FAILURE);
       if (!clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
         exit(EXIT_FAILURE);
       // measure excution time of makeClusters

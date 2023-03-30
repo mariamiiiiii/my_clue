@@ -61,7 +61,7 @@ static const int localStackSizePerSeed = 128;
 // allowed ranges spanned. Anchillary quantitied, like the inverse of the bin
 // width should also be provided. Code will not compile if any such information
 // is missing.
-template<typename TAcc, typename T, int NLAYERS>
+template <typename TAcc, typename T, int NLAYERS>
 class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
  public:
   using Dim = alpaka::Dim<TAcc>;
@@ -79,7 +79,8 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
   using BufVecArrSeeds = BufAccT<GPUAlpaka::VecArray<int, maxNSeeds>>;
   using BufVecArrFollowers = BufAccT<GPUAlpaka::VecArray<int, maxNFollowers>>;
   //
-  // Bring base-class public variables into the scope of this template derived class
+  // Bring base-class public variables into the scope of this template derived
+  // class
   using CLUEAlgo<T, NLAYERS>::dc_;
   using CLUEAlgo<T, NLAYERS>::rhoc_;
   using CLUEAlgo<T, NLAYERS>::outlierDeltaFactor_;
@@ -262,12 +263,11 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
   void copy_todevice() {
     // input variables
     using Dim1 = alpaka::DimInt<1ul>;
-    alpaka::Vec<Dim1, Idx> const extentToTransfer(
-        static_cast<Idx>(points_.n));
-    alpaka::memcpy(queue_, device_bufs_.x.value(), getViewHost(points_.p_x, points_.n),
-                   extentToTransfer);
-    alpaka::memcpy(queue_, device_bufs_.y.value(), getViewHost(points_.p_y, points_.n),
-                   extentToTransfer);
+    alpaka::Vec<Dim1, Idx> const extentToTransfer(static_cast<Idx>(points_.n));
+    alpaka::memcpy(queue_, device_bufs_.x.value(),
+                   getViewHost(points_.p_x, points_.n), extentToTransfer);
+    alpaka::memcpy(queue_, device_bufs_.y.value(),
+                   getViewHost(points_.p_y, points_.n), extentToTransfer);
     alpaka::memcpy(queue_, device_bufs_.layer.value(),
                    getViewHost(points_.p_layer, points_.n), extentToTransfer);
     alpaka::memcpy(queue_, device_bufs_.weight.value(),
@@ -323,10 +323,11 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
   }
 };
 
-template<typename TAcc, typename T, int NLAYERS>
+template <typename TAcc, typename T, int NLAYERS>
 auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc,
-    CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeHistogram dummy,
+    CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeHistogram
+        dummy,
     int numberOfPoints) const -> void {
   const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
   if (i < numberOfPoints) {
@@ -335,10 +336,11 @@ auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
   }
 }
 
-template<typename TAcc, typename T, int NLAYERS>
+template <typename TAcc, typename T, int NLAYERS>
 auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc,
-    CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeLocalDensity dummy,
+    CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeLocalDensity
+        dummy,
     float dc, int numberOfPoints) const -> void {
   const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
   if (i < numberOfPoints) {
@@ -378,10 +380,11 @@ auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
   }
 }
 
-template<typename TAcc, typename T, int NLAYERS>
+template <typename TAcc, typename T, int NLAYERS>
 auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc,
-    CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeDistanceToHigher dummy,
+    CLUEAlgoAlpaka<TAcc, T,
+                   NLAYERS>::DeviceRunner::KernelComputeDistanceToHigher dummy,
     float outlierDeltaFactor, float dc, int numberOfPoints) const -> void {
   const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
   float dm = outlierDeltaFactor * dc;
@@ -434,13 +437,10 @@ auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
   }
 }
 
-template<typename TAcc, typename T, int NLAYERS>
-auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(TAcc const &acc,
-                                                    KernelFindClusters dummy,
-                                                    float outlierDeltaFactor,
-                                                    float dc, float rhoc,
-                                                    int numberOfPoints) const
-    -> void {
+template <typename TAcc, typename T, int NLAYERS>
+auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
+    TAcc const &acc, KernelFindClusters dummy, float outlierDeltaFactor,
+    float dc, float rhoc, int numberOfPoints) const -> void {
   const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
 
   if (i < numberOfPoints) {
@@ -466,11 +466,11 @@ auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(TAcc const &acc,
   }
 }
 
-template<typename TAcc, typename T, int NLAYERS>
+template <typename TAcc, typename T, int NLAYERS>
 auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc,
-    CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelAssignClusters dummy) const
-    -> void {
+    CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelAssignClusters dummy)
+    const -> void {
   const Idx idxCls(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
 
   if (idxCls < ptrs_.seeds_[0].size()) {
@@ -514,7 +514,7 @@ auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
   }
 }
 
-template<typename TAcc, typename T, int NLAYERS>
+template <typename TAcc, typename T, int NLAYERS>
 void CLUEAlgoAlpaka<TAcc, T, NLAYERS>::makeClusters() {
   copy_todevice();
   clear_internal_buffers();
@@ -530,19 +530,22 @@ void CLUEAlgoAlpaka<TAcc, T, NLAYERS>::makeClusters() {
   std::cout << manualWorkDiv << std::endl;
 
   // Create the kernel execution tasks.
-  typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeHistogram
+  typename CLUEAlgoAlpaka<TAcc, T,
+                          NLAYERS>::DeviceRunner::KernelComputeHistogram
       taskComputeHistogram;
   auto const kernelComputeHistogram = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskComputeHistogram,
       static_cast<int>(points_.n)));
 
-  typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeLocalDensity
+  typename CLUEAlgoAlpaka<TAcc, T,
+                          NLAYERS>::DeviceRunner::KernelComputeLocalDensity
       taskComputeLocalDensity;
   auto const kernelComputeLocalDensity = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskComputeLocalDensity, dc_,
       static_cast<int>(points_.n)));
 
-  typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelComputeDistanceToHigher
+  typename CLUEAlgoAlpaka<TAcc, T,
+                          NLAYERS>::DeviceRunner::KernelComputeDistanceToHigher
       taskComputeDistanceToHigher;
   auto const kernelComputeDistanceToHigher = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskComputeDistanceToHigher,

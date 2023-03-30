@@ -1,12 +1,13 @@
 #ifndef CLUEAlgoGPU_h
 #define CLUEAlgoGPU_h
 #include <math.h>
-#include <limits>
-#include <iostream>
 
-//GPU Add
-#include <cuda_runtime.h>
+#include <iostream>
+#include <limits>
+
+// GPU Add
 #include <cuda.h>
+#include <cuda_runtime.h>
 // for timing
 #include <chrono>
 #include <ctime>
@@ -35,7 +36,7 @@ struct PointsPtr {
 // allowed ranges spanned. Anchillary quantitied, like the inverse of the bin
 // width should also be provided. Code will not compile if any such information
 // is missing.
-template<typename T, int NLAYERS>
+template <typename T, int NLAYERS>
 class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
   // inherit from CLUEAlgo
 
@@ -51,7 +52,8 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
   // public methods
   void makeClusters();  // overwrite base class
 
-  // Bring base-class public variables into the scope of this template derived class
+  // Bring base-class public variables into the scope of this template derived
+  // class
   using CLUEAlgo<T, NLAYERS>::dc_;
   using CLUEAlgo<T, NLAYERS>::rhoc_;
   using CLUEAlgo<T, NLAYERS>::outlierDeltaFactor_;
@@ -114,8 +116,8 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
                cudaMemcpyHostToDevice);
     cudaMemcpy(d_points.layer, points_.p_layer, sizeof(int) * points_.n,
                cudaMemcpyHostToDevice);
-    cudaMemcpy(d_points.weight, points_.p_weight,
-               sizeof(float) * points_.n, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_points.weight, points_.p_weight, sizeof(float) * points_.n,
+               cudaMemcpyHostToDevice);
   }
 
   void clear_internal_buffers() {
@@ -152,8 +154,8 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
   // #endif // __CUDACC__
 };
 
-template<typename T>
-__global__ void kernel_compute_histogram(TilesGPU<T>* d_hist,
+template <typename T>
+__global__ void kernel_compute_histogram(TilesGPU<T> *d_hist,
                                          const PointsPtr d_points,
                                          int numberOfPoints) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -163,8 +165,8 @@ __global__ void kernel_compute_histogram(TilesGPU<T>* d_hist,
   }
 }  // kernel
 
-template<typename T>
-__global__ void kernel_calculate_density(TilesGPU<T>* d_hist,
+template <typename T>
+__global__ void kernel_calculate_density(TilesGPU<T> *d_hist,
                                          PointsPtr d_points, float dc,
                                          int numberOfPoints) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -205,8 +207,8 @@ __global__ void kernel_calculate_density(TilesGPU<T>* d_hist,
   }
 }  // kernel
 
-template<typename T>
-__global__ void kernel_calculate_distanceToHigher(TilesGPU<T>* d_hist,
+template <typename T>
+__global__ void kernel_calculate_distanceToHigher(TilesGPU<T> *d_hist,
                                                   PointsPtr d_points,
                                                   float outlierDeltaFactor,
                                                   float dc,
@@ -264,8 +266,8 @@ __global__ void kernel_calculate_distanceToHigher(TilesGPU<T>* d_hist,
 }  // kernel
 
 __global__ void kernel_find_clusters(
-    GPU::VecArray<int, maxNSeeds>* d_seeds,
-    GPU::VecArray<int, maxNFollowers>* d_followers, PointsPtr d_points,
+    GPU::VecArray<int, maxNSeeds> *d_seeds,
+    GPU::VecArray<int, maxNFollowers> *d_followers, PointsPtr d_points,
     float outlierDeltaFactor, float dc, float rhoc, int numberOfPoints) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -293,11 +295,11 @@ __global__ void kernel_find_clusters(
 }  // kernel
 
 __global__ void kernel_assign_clusters(
-    const GPU::VecArray<int, maxNSeeds>* d_seeds,
-    const GPU::VecArray<int, maxNFollowers>* d_followers, PointsPtr d_points,
+    const GPU::VecArray<int, maxNSeeds> *d_seeds,
+    const GPU::VecArray<int, maxNFollowers> *d_followers, PointsPtr d_points,
     int numberOfPoints) {
   int idxCls = blockIdx.x * blockDim.x + threadIdx.x;
-  const auto& seeds = d_seeds[0];
+  const auto &seeds = d_seeds[0];
   const auto nSeeds = seeds.size();
   if (idxCls < nSeeds) {
     int localStack[localStackSizePerSeed] = {-1};
@@ -331,7 +333,7 @@ __global__ void kernel_assign_clusters(
   }
 }  // kernel
 
-template<typename T, int NLAYERS>
+template <typename T, int NLAYERS>
 void CLUEAlgoGPU<T, NLAYERS>::makeClusters() {
   copy_todevice();
   clear_internal_buffers();
@@ -342,10 +344,10 @@ void CLUEAlgoGPU<T, NLAYERS>::makeClusters() {
   ////////////////////////////////////////////
   const dim3 blockSize(1024, 1, 1);
   const dim3 gridSize(ceil(points_.n / static_cast<float>(blockSize.x)), 1, 1);
-  kernel_compute_histogram<T><<<gridSize, blockSize>>>(d_hist, d_points,
-                                                    points_.n);
-  kernel_calculate_density<T><<<gridSize, blockSize>>>(d_hist, d_points, dc_,
-                                                    points_.n);
+  kernel_compute_histogram<T>
+      <<<gridSize, blockSize>>>(d_hist, d_points, points_.n);
+  kernel_calculate_density<T>
+      <<<gridSize, blockSize>>>(d_hist, d_points, dc_, points_.n);
   kernel_calculate_distanceToHigher<T><<<gridSize, blockSize>>>(
       d_hist, d_points, outlierDeltaFactor_, dc_, points_.n);
   kernel_find_clusters<<<gridSize, blockSize>>>(d_seeds, d_followers, d_points,
@@ -362,6 +364,5 @@ void CLUEAlgoGPU<T, NLAYERS>::makeClusters() {
 
   copy_tohost();
 }
-
 
 #endif

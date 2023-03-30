@@ -9,14 +9,14 @@
 #include <string>
 #include <vector>
 
-#include "Tiles.h"
 #include "Points.h"
+#include "Tiles.h"
 
 // The type T is used to pass the number of bins in each dimension and the
 // allowed ranges spanned. Anchillary quantitied, like the inverse of the bin
 // width should also be provided. Code will not compile if any such information
 // is missing.
-template<typename T, int NLAYERS>
+template <typename T, int NLAYERS>
 class CLUEAlgo {
  public:
   CLUEAlgo(float dc, float rhoc, float outlierDeltaFactor, bool verbose) {
@@ -42,10 +42,10 @@ class CLUEAlgo {
     points_.layer.resize(n);
     points_.weight.resize(n);
     // Copy, next
-    std::copy(x, x+n, std::begin(points_.x));
-    std::copy(y, y+n, std::begin(points_.y));
-    std::copy(layer, layer+n, std::begin(points_.layer));
-    std::copy(weight, weight+n, std::begin(points_.weight));
+    std::copy(x, x + n, std::begin(points_.x));
+    std::copy(y, y + n, std::begin(points_.y));
+    std::copy(layer, layer + n, std::begin(points_.layer));
+    std::copy(weight, weight + n, std::begin(points_.weight));
 
     points_.p_x = points_.x.data();
     points_.p_y = points_.y.data();
@@ -57,8 +57,9 @@ class CLUEAlgo {
     return points_.n;
   }
 
-  int copyPoints(const std::vector<float> &x, const std::vector<float> &y,
-      const std::vector<int> & layer, const std::vector<float> & weight) {
+  int copyPoints(const std::vector<float>& x, const std::vector<float>& y,
+                 const std::vector<int>& layer,
+                 const std::vector<float>& weight) {
     points_.clear();
     auto const n = x.size();
     points_.n = n;
@@ -85,7 +86,8 @@ class CLUEAlgo {
     return points_.n;
   }
 
-  int setPoints(int n, const float* x, const float* y, const int* layer, const float* weight) {
+  int setPoints(int n, const float* x, const float* y, const int* layer,
+                const float* weight) {
     points_.clear();
     points_.n = n;
     points_.p_x = x;
@@ -98,8 +100,8 @@ class CLUEAlgo {
     return n;
   }
 
-  int setPoints(std::vector<float> &x, std::vector<float> &y,
-      std::vector<int> & layer, std::vector<float> & weight) {
+  int setPoints(std::vector<float>& x, std::vector<float>& y,
+                std::vector<int>& layer, std::vector<float>& weight) {
     points_.clear();
     auto const n = x.size();
     points_.n = n;
@@ -119,7 +121,6 @@ class CLUEAlgo {
 
     return points_.n;
   }
-
 
   void clearPoints() { points_.clear(); }
 
@@ -141,21 +142,21 @@ class CLUEAlgo {
   void resizeOutputContainers();
 };
 
-template<typename T, int NLAYERS>
+template <typename T, int NLAYERS>
 void CLUEAlgo<T, NLAYERS>::resizeOutputContainers() {
-
-    // result variables
-    points_.rho.resize(points_.n, 0);
-    points_.delta.resize(points_.n, std::numeric_limits<float>::max());
-    points_.nearestHigher.resize(points_.n, -1);
-    points_.followers.resize(points_.n);
-    points_.clusterIndex.resize(points_.n, -1);
-    points_.isSeed.resize(points_.n, 0);
+  // result variables
+  points_.rho.resize(points_.n, 0);
+  points_.delta.resize(points_.n, std::numeric_limits<float>::max());
+  points_.nearestHigher.resize(points_.n, -1);
+  points_.followers.resize(points_.n);
+  points_.clusterIndex.resize(points_.n, -1);
+  points_.isSeed.resize(points_.n, 0);
 }
 
-template<typename T, int NLAYERS>
-void CLUEAlgo<T, NLAYERS>::verboseResults(const std::string& outputFileName /* "cout" */,
-                              const unsigned nVerbose /* -1 */) const {
+template <typename T, int NLAYERS>
+void CLUEAlgo<T, NLAYERS>::verboseResults(
+    const std::string& outputFileName /* "cout" */,
+    const unsigned nVerbose /* -1 */) const {
   if (!verbose_) return;
 
   unsigned int to_print = (nVerbose == -1 ? points_.n : nVerbose);
@@ -165,11 +166,11 @@ void CLUEAlgo<T, NLAYERS>::verboseResults(const std::string& outputFileName /* "
   std::string s;
   char buffer[100];
   for (unsigned i = 0; i < to_print; i++) {
-    snprintf(buffer, 100,
-             "%d, %5.3f, %5.3f, %d, %5.3f, %5.3f, %5.3g, %d, %d, %d\n", i,
-             points_.p_x[i], points_.p_y[i], points_.p_layer[i], points_.p_weight[i],
-             points_.rho[i], points_.delta[i], points_.nearestHigher[i],
-             points_.isSeed[i], points_.clusterIndex[i]);
+    snprintf(
+        buffer, 100, "%d, %5.3f, %5.3f, %d, %5.3f, %5.3f, %5.3g, %d, %d, %d\n",
+        i, points_.p_x[i], points_.p_y[i], points_.p_layer[i],
+        points_.p_weight[i], points_.rho[i], points_.delta[i],
+        points_.nearestHigher[i], points_.isSeed[i], points_.clusterIndex[i]);
     s += buffer;
   }
 
@@ -187,8 +188,8 @@ void CLUEAlgo<T, NLAYERS>::verboseResults(const std::string& outputFileName /* "
   }
 }
 
-template<typename T, int NLAYERS>
-void CLUEAlgo<T, NLAYERS>::makeClusters(){
+template <typename T, int NLAYERS>
+void CLUEAlgo<T, NLAYERS>::makeClusters() {
   std::array<Tiles<T>, NLAYERS> allLayerTiles;
   // start clustering
   auto start = std::chrono::high_resolution_clock::now();
@@ -196,49 +197,52 @@ void CLUEAlgo<T, NLAYERS>::makeClusters(){
   prepareDataStructures(allLayerTiles);
   auto finish = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = finish - start;
-  std::cout << "--- prepareDataStructures:     " << elapsed.count() *1000 << " ms\n";
+  std::cout << "--- prepareDataStructures:     " << elapsed.count() * 1000
+            << " ms\n";
 
   start = std::chrono::high_resolution_clock::now();
   calculateLocalDensity(allLayerTiles);
   finish = std::chrono::high_resolution_clock::now();
   elapsed = finish - start;
-  std::cout << "--- calculateLocalDensity:     " << elapsed.count() *1000 << " ms\n";
+  std::cout << "--- calculateLocalDensity:     " << elapsed.count() * 1000
+            << " ms\n";
 
   start = std::chrono::high_resolution_clock::now();
   calculateDistanceToHigher(allLayerTiles);
   finish = std::chrono::high_resolution_clock::now();
   elapsed = finish - start;
-  std::cout << "--- calculateDistanceToHigher: " << elapsed.count() *1000 << " ms\n";
+  std::cout << "--- calculateDistanceToHigher: " << elapsed.count() * 1000
+            << " ms\n";
 
   findAndAssignClusters();
 }
 
-
-template<typename T, int NLAYERS>
-void CLUEAlgo<T, NLAYERS>::prepareDataStructures( std::array<Tiles<T>, NLAYERS> & allLayerTiles ){
-  for (int i=0; i<points_.n; i++){
+template <typename T, int NLAYERS>
+void CLUEAlgo<T, NLAYERS>::prepareDataStructures(
+    std::array<Tiles<T>, NLAYERS>& allLayerTiles) {
+  for (int i = 0; i < points_.n; i++) {
     // push index of points into tiles
-    allLayerTiles[points_.p_layer[i]].fill( points_.p_x[i], points_.p_y[i], i);
+    allLayerTiles[points_.p_layer[i]].fill(points_.p_x[i], points_.p_y[i], i);
   }
 }
 
-
-template<typename T, int NLAYERS>
-void CLUEAlgo<T, NLAYERS>::calculateLocalDensity( std::array<Tiles<T>, NLAYERS> & allLayerTiles ){
-
+template <typename T, int NLAYERS>
+void CLUEAlgo<T, NLAYERS>::calculateLocalDensity(
+    std::array<Tiles<T>, NLAYERS>& allLayerTiles) {
   // loop over all points
-  for(unsigned i = 0; i < points_.n; i++) {
+  for (unsigned i = 0; i < points_.n; i++) {
     Tiles<T>& lt = allLayerTiles[points_.p_layer[i]];
 
     // get search box
-    std::array<int,4> search_box = lt.searchBox(points_.p_x[i]-dc_, points_.p_x[i]+dc_, points_.p_y[i]-dc_, points_.p_y[i]+dc_);
+    std::array<int, 4> search_box =
+        lt.searchBox(points_.p_x[i] - dc_, points_.p_x[i] + dc_,
+                     points_.p_y[i] - dc_, points_.p_y[i] + dc_);
 
     // loop over bins in the search box
-    for(int xBin = search_box[0]; xBin < search_box[1]+1; ++xBin) {
-      for(int yBin = search_box[2]; yBin < search_box[3]+1; ++yBin) {
-
+    for (int xBin = search_box[0]; xBin < search_box[1] + 1; ++xBin) {
+      for (int yBin = search_box[2]; yBin < search_box[3] + 1; ++yBin) {
         // get the id of this bin
-        int binId = lt.getGlobalBinByBin(xBin,yBin);
+        int binId = lt.getGlobalBinByBin(xBin, yBin);
         // get the size of this bin
         int binSize = lt[binId].size();
 
@@ -247,23 +251,22 @@ void CLUEAlgo<T, NLAYERS>::calculateLocalDensity( std::array<Tiles<T>, NLAYERS> 
           int j = lt[binId][binIter];
           // query N_{dc_}(i)
           float dist_ij = distance(i, j);
-          if(dist_ij <= dc_) {
+          if (dist_ij <= dc_) {
             // sum weights within N_{dc_}(i)
             points_.rho[i] += (i == j ? 1.f : 0.5f) * points_.p_weight[j];
           }
-        } // end of interate inside this bin
-
+        }  // end of interate inside this bin
       }
-    } // end of loop over bins in search box
-  } // end of loop over points
+    }  // end of loop over bins in search box
+  }    // end of loop over points
 }
 
-
-template<typename T, int NLAYERS>
-void CLUEAlgo<T, NLAYERS>::calculateDistanceToHigher( std::array<Tiles<T>, NLAYERS> & allLayerTiles ){
+template <typename T, int NLAYERS>
+void CLUEAlgo<T, NLAYERS>::calculateDistanceToHigher(
+    std::array<Tiles<T>, NLAYERS>& allLayerTiles) {
   // loop over all points
   float dm = outlierDeltaFactor_ * dc_;
-  for(unsigned i = 0; i < points_.n; i++) {
+  for (unsigned i = 0; i < points_.n; i++) {
     // default values of delta and nearest higher for i
     float delta_i = std::numeric_limits<float>::max();
     int nearestHigher_i = -1;
@@ -271,16 +274,16 @@ void CLUEAlgo<T, NLAYERS>::calculateDistanceToHigher( std::array<Tiles<T>, NLAYE
     float yi = points_.p_y[i];
     float rho_i = points_.rho[i];
 
-    //get search box
+    // get search box
     Tiles<T>& lt = allLayerTiles[points_.p_layer[i]];
-    std::array<int,4> search_box = lt.searchBox(xi-dm, xi+dm, yi-dm, yi+dm);
+    std::array<int, 4> search_box =
+        lt.searchBox(xi - dm, xi + dm, yi - dm, yi + dm);
 
     // loop over all bins in the search box
-    for(int xBin = search_box[0]; xBin < search_box[1]+1; ++xBin) {
-      for(int yBin = search_box[2]; yBin < search_box[3]+1; ++yBin) {
-
+    for (int xBin = search_box[0]; xBin < search_box[1] + 1; ++xBin) {
+      for (int yBin = search_box[2]; yBin < search_box[3] + 1; ++yBin) {
         // get the id of this bin
-        int binId = lt.getGlobalBinByBin(xBin,yBin);
+        int binId = lt.getGlobalBinByBin(xBin, yBin);
         // get the size of this bin
         int binSize = lt[binId].size();
 
@@ -290,9 +293,9 @@ void CLUEAlgo<T, NLAYERS>::calculateDistanceToHigher( std::array<Tiles<T>, NLAYE
           // query N'_{dm}(i)
           bool foundHigher = (points_.rho[j] > rho_i);
           // in the rare case where rho is the same, use detid
-          foundHigher = foundHigher || ((points_.rho[j] == rho_i) && (j>i) );
+          foundHigher = foundHigher || ((points_.rho[j] == rho_i) && (j > i));
           float dist_ij = distance(i, j);
-          if(foundHigher && dist_ij <= dm) { // definition of N'_{dm}(i)
+          if (foundHigher && dist_ij <= dm) {  // definition of N'_{dm}(i)
             // find the nearest point within N'_{dm}(i)
             if (dist_ij < delta_i) {
               // update delta_i and nearestHigher_i
@@ -300,17 +303,17 @@ void CLUEAlgo<T, NLAYERS>::calculateDistanceToHigher( std::array<Tiles<T>, NLAYE
               nearestHigher_i = j;
             }
           }
-        } // end of interate inside this bin
+        }  // end of interate inside this bin
       }
-    } // end of loop over bins in search box
+    }  // end of loop over bins in search box
 
     points_.delta[i] = delta_i;
     points_.nearestHigher[i] = nearestHigher_i;
-  } // end of loop over points
+  }  // end of loop over points
 }
 
-template<typename T, int NLAYERS>
-void CLUEAlgo<T, NLAYERS>::findAndAssignClusters(){
+template <typename T, int NLAYERS>
+void CLUEAlgo<T, NLAYERS>::findAndAssignClusters() {
   auto start = std::chrono::high_resolution_clock::now();
 
   int nClusters = 0;
@@ -318,7 +321,7 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters(){
   // find cluster seeds and outlier
   std::vector<int> localStack;
   // loop over all points
-  for(unsigned i = 0; i < points_.n; i++) {
+  for (unsigned i = 0; i < points_.n; i++) {
     // initialize clusterIndex
     points_.clusterIndex[i] = -1;
 
@@ -328,8 +331,7 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters(){
     // determine seed or outlier
     bool isSeed = (deltai > dc_) and (rhoi >= rhoc_);
     bool isOutlier = (deltai > outlierDeltaFactor_ * dc_) and (rhoi < rhoc_);
-    if (isSeed)
-    {
+    if (isSeed) {
       // set isSeed as 1
       points_.isSeed[i] = 1;
       // set cluster id
@@ -338,9 +340,7 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters(){
       nClusters++;
       // add seed into local stack
       localStack.push_back(i);
-    }
-    else if (!isOutlier)
-    {
+    } else if (!isOutlier) {
       // register as follower at its nearest higher
       points_.followers[points_.nearestHigher[i]].push_back(i);
     }
@@ -348,7 +348,8 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters(){
 
   auto finish = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = finish - start;
-  std::cout << "--- findSeedAndFollowers:      " << elapsed.count() *1000 << " ms\n";
+  std::cout << "--- findSeedAndFollowers:      " << elapsed.count() * 1000
+            << " ms\n";
 
   start = std::chrono::high_resolution_clock::now();
   // expend clusters from seeds
@@ -358,7 +359,7 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters(){
     localStack.pop_back();
 
     // loop over followers
-    for(int j : followers){
+    for (int j : followers) {
       // pass id from i to a i's follower
       points_.clusterIndex[j] = points_.clusterIndex[i];
       // push this follower to localStack
@@ -367,15 +368,15 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters(){
   }
   finish = std::chrono::high_resolution_clock::now();
   elapsed = finish - start;
-  std::cout << "--- assignClusters:            " << elapsed.count() *1000 << " ms\n";
+  std::cout << "--- assignClusters:            " << elapsed.count() * 1000
+            << " ms\n";
 }
 
-template<typename T, int NLAYERS>
+template <typename T, int NLAYERS>
 inline float CLUEAlgo<T, NLAYERS>::distance(int i, int j) const {
-
   // 2-d distance on the layer
 
-  //assert(points_.p_layer[i] == points_.p_layer[j]);
+  // assert(points_.p_layer[i] == points_.p_layer[j]);
   const float dx = points_.p_x[i] - points_.p_x[j];
   const float dy = points_.p_y[i] - points_.p_y[j];
   return std::sqrt(dx * dx + dy * dy);

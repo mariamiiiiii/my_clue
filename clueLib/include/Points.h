@@ -2,7 +2,7 @@
 #define Points_h
 
 struct Points {
-  //For internally managed input
+  // For internally managed input
   std::vector<float> x;
   std::vector<float> y;
   std::vector<int> layer;
