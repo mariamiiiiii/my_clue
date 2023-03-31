@@ -15,6 +15,21 @@
 #include "CLUEAlgo.h"
 #include "TilesGPU.h"
 
+#define CHECK_CUDA_ERROR(val) check((val), #val, __FILE__, __LINE__)
+  template <typename T>
+void check(T err, const char* const func, const char* const file,
+    const int line)
+{
+  if (err != cudaSuccess)
+  {
+    std::cerr << "CUDA Runtime Error at: " << file << ":" << line
+      << std::endl;
+    std::cerr << cudaGetErrorString(err) << " " << func << std::endl;
+
+    std::exit(EXIT_FAILURE);
+  }
+}
+
 static const int maxNSeeds = 100000;
 static const int maxNFollowers = 32;
 static const int localStackSizePerSeed = 32;
@@ -73,81 +88,81 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
   void init_device() {
     unsigned int reserve = 1000000;
     // input variables
-    cudaMalloc(&d_points.x, sizeof(float) * reserve);
-    cudaMalloc(&d_points.y, sizeof(float) * reserve);
-    cudaMalloc(&d_points.layer, sizeof(int) * reserve);
-    cudaMalloc(&d_points.weight, sizeof(float) * reserve);
+    CHECK_CUDA_ERROR(cudaMalloc(&d_points.x, sizeof(float) * reserve));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_points.y, sizeof(float) * reserve));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_points.layer, sizeof(int) * reserve));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_points.weight, sizeof(float) * reserve));
     // result variables
-    cudaMalloc(&d_points.rho, sizeof(float) * reserve);
-    cudaMalloc(&d_points.delta, sizeof(float) * reserve);
-    cudaMalloc(&d_points.nearestHigher, sizeof(int) * reserve);
-    cudaMalloc(&d_points.clusterIndex, sizeof(int) * reserve);
-    cudaMalloc(&d_points.isSeed, sizeof(int) * reserve);
+    CHECK_CUDA_ERROR(cudaMalloc(&d_points.rho, sizeof(float) * reserve));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_points.delta, sizeof(float) * reserve));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_points.nearestHigher, sizeof(int) * reserve));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_points.clusterIndex, sizeof(int) * reserve));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_points.isSeed, sizeof(int) * reserve));
     // algorithm internal variables
-    cudaMalloc(&d_hist, sizeof(TilesGPU<T>) * NLAYERS);
-    cudaMalloc(&d_seeds, sizeof(GPU::VecArray<int, maxNSeeds>));
-    cudaMalloc(&d_followers,
-               sizeof(GPU::VecArray<int, maxNFollowers>) * reserve);
+    CHECK_CUDA_ERROR(cudaMalloc(&d_hist, sizeof(TilesGPU<T>) * NLAYERS));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_seeds, sizeof(GPU::VecArray<int, maxNSeeds>)));
+    CHECK_CUDA_ERROR(cudaMalloc(&d_followers,
+               sizeof(GPU::VecArray<int, maxNFollowers>) * reserve));
   }
 
   void free_device() {
     // input variables
-    cudaFree(d_points.x);
-    cudaFree(d_points.y);
-    cudaFree(d_points.layer);
-    cudaFree(d_points.weight);
+    CHECK_CUDA_ERROR(cudaFree(d_points.x));
+    CHECK_CUDA_ERROR(cudaFree(d_points.y));
+    CHECK_CUDA_ERROR(cudaFree(d_points.layer));
+    CHECK_CUDA_ERROR(cudaFree(d_points.weight));
     // result variables
-    cudaFree(d_points.rho);
-    cudaFree(d_points.delta);
-    cudaFree(d_points.nearestHigher);
-    cudaFree(d_points.clusterIndex);
-    cudaFree(d_points.isSeed);
+    CHECK_CUDA_ERROR(cudaFree(d_points.rho));
+    CHECK_CUDA_ERROR(cudaFree(d_points.delta));
+    CHECK_CUDA_ERROR(cudaFree(d_points.nearestHigher));
+    CHECK_CUDA_ERROR(cudaFree(d_points.clusterIndex));
+    CHECK_CUDA_ERROR(cudaFree(d_points.isSeed));
     // algorithm internal variables
-    cudaFree(d_hist);
-    cudaFree(d_seeds);
-    cudaFree(d_followers);
+    CHECK_CUDA_ERROR(cudaFree(d_hist));
+    CHECK_CUDA_ERROR(cudaFree(d_seeds));
+    CHECK_CUDA_ERROR(cudaFree(d_followers));
   }
 
   void copy_todevice() {
     // input variables
-    cudaMemcpy(d_points.x, points_.p_x, sizeof(float) * points_.n,
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(d_points.y, points_.p_y, sizeof(float) * points_.n,
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(d_points.layer, points_.p_layer, sizeof(int) * points_.n,
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(d_points.weight, points_.p_weight, sizeof(float) * points_.n,
-               cudaMemcpyHostToDevice);
+    CHECK_CUDA_ERROR(cudaMemcpy(d_points.x, points_.p_x, sizeof(float) * points_.n,
+               cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemcpy(d_points.y, points_.p_y, sizeof(float) * points_.n,
+               cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemcpy(d_points.layer, points_.p_layer, sizeof(int) * points_.n,
+               cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERROR(cudaMemcpy(d_points.weight, points_.p_weight, sizeof(float) * points_.n,
+               cudaMemcpyHostToDevice));
   }
 
   void clear_internal_buffers() {
     // // result variables
-    cudaMemset(d_points.rho, 0x00, sizeof(float) * points_.n);
-    cudaMemset(d_points.delta, 0x00, sizeof(float) * points_.n);
-    cudaMemset(d_points.nearestHigher, 0x00, sizeof(int) * points_.n);
-    cudaMemset(d_points.clusterIndex, 0x00, sizeof(int) * points_.n);
-    cudaMemset(d_points.isSeed, 0x00, sizeof(int) * points_.n);
+    CHECK_CUDA_ERROR(cudaMemset(d_points.rho, 0x00, sizeof(float) * points_.n));
+    CHECK_CUDA_ERROR(cudaMemset(d_points.delta, 0x00, sizeof(float) * points_.n));
+    CHECK_CUDA_ERROR(cudaMemset(d_points.nearestHigher, 0x00, sizeof(int) * points_.n));
+    CHECK_CUDA_ERROR(cudaMemset(d_points.clusterIndex, 0x00, sizeof(int) * points_.n));
+    CHECK_CUDA_ERROR(cudaMemset(d_points.isSeed, 0x00, sizeof(int) * points_.n));
     // algorithm internal variables
-    cudaMemset(d_hist, 0x00, sizeof(TilesGPU<T>) * NLAYERS);
-    cudaMemset(d_seeds, 0x00, sizeof(GPU::VecArray<int, maxNSeeds>));
-    cudaMemset(d_followers, 0x00,
-               sizeof(GPU::VecArray<int, maxNFollowers>) * points_.n);
+    CHECK_CUDA_ERROR(cudaMemset(d_hist, 0x00, sizeof(TilesGPU<T>) * NLAYERS));
+    CHECK_CUDA_ERROR(cudaMemset(d_seeds, 0x00, sizeof(GPU::VecArray<int, maxNSeeds>)));
+    CHECK_CUDA_ERROR(cudaMemset(d_followers, 0x00,
+               sizeof(GPU::VecArray<int, maxNFollowers>) * points_.n));
   }
 
   void copy_tohost() {
     // result variables
-    cudaMemcpy(points_.clusterIndex.data(), d_points.clusterIndex,
-               sizeof(int) * points_.n, cudaMemcpyDeviceToHost);
+    CHECK_CUDA_ERROR(cudaMemcpy(points_.clusterIndex.data(), d_points.clusterIndex,
+               sizeof(int) * points_.n, cudaMemcpyDeviceToHost));
     if (verbose_) {
       // other variables, copy only when verbose_==True
-      cudaMemcpy(points_.rho.data(), d_points.rho, sizeof(float) * points_.n,
-                 cudaMemcpyDeviceToHost);
-      cudaMemcpy(points_.delta.data(), d_points.delta,
-                 sizeof(float) * points_.n, cudaMemcpyDeviceToHost);
-      cudaMemcpy(points_.nearestHigher.data(), d_points.nearestHigher,
-                 sizeof(int) * points_.n, cudaMemcpyDeviceToHost);
-      cudaMemcpy(points_.isSeed.data(), d_points.isSeed,
-                 sizeof(int) * points_.n, cudaMemcpyDeviceToHost);
+      CHECK_CUDA_ERROR(cudaMemcpy(points_.rho.data(), d_points.rho, sizeof(float) * points_.n,
+                 cudaMemcpyDeviceToHost));
+      CHECK_CUDA_ERROR(cudaMemcpy(points_.delta.data(), d_points.delta,
+                 sizeof(float) * points_.n, cudaMemcpyDeviceToHost));
+      CHECK_CUDA_ERROR(cudaMemcpy(points_.nearestHigher.data(), d_points.nearestHigher,
+                 sizeof(int) * points_.n, cudaMemcpyDeviceToHost));
+      CHECK_CUDA_ERROR(cudaMemcpy(points_.isSeed.data(), d_points.isSeed,
+                 sizeof(int) * points_.n, cudaMemcpyDeviceToHost));
     }
   }
 
