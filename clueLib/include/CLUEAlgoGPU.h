@@ -213,12 +213,16 @@ __global__ void kernel_compute_histogram(TilesGPU<T> *d_hist,
 }  // kernel kernel_compute_histogram
 
 template <typename T>
-__global__ void kernel_calculate_density(TilesGPU<T> *d_hist,
+__global__ void kernel_calculate_densityTile(TilesGPU<T> *d_hist,
                                          PointsPtr d_points, float dc,
                                          int numberOfPoints, cudaStream_t) {
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < numberOfPoints) {
-    double rhoi{0.};
+  int layeri = blockIdx.y;
+  int globalBinOnLayer = blockIdx.x;
+  int bin = threadIdx.x;
+
+  if (bin < d_hist[layeri][globalBinOnLayer].size()) {
+    int i = d_hist[layeri][globalBinOnLayer][bin];
+    float rhoi{0.};
     int layeri = d_points.layer[i];
     float xi = d_points.x[i];
     float yi = d_points.y[i];
@@ -241,12 +245,60 @@ __global__ void kernel_calculate_density(TilesGPU<T> *d_hist,
           // query N_{dc_}(i)
           float xj = d_points.x[j];
           float yj = d_points.y[j];
-          float dist_ij =
-              std::sqrt((xi - xj) * (xi - xj) + (yi - yj) * (yi - yj));
-          if (dist_ij <= dc) {
+          float dist_ij_2 =
+              ((xi - xj) * (xi - xj) + (yi - yj) * (yi - yj));
+          rhoi += (dist_ij_2 <= dc*dc) * (i == j ? 1.f : 0.5f) * d_points.weight[j];
+          /*
+          if (dist_ij_2 <= dc*dc) {
             // sum weights within N_{dc_}(i)
             rhoi += (i == j ? 1.f : 0.5f) * d_points.weight[j];
           }
+          */
+        }  // end of interate inside this bin
+      }
+    }  // end of loop over bins in search box
+    d_points.rho[i] = rhoi;
+  }
+}  // kernel kernel_calculate_density
+
+template <typename T>
+__global__ void kernel_calculate_density(TilesGPU<T> *d_hist,
+                                         PointsPtr d_points, float dc,
+                                         int numberOfPoints, cudaStream_t) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < numberOfPoints) {
+    float rhoi{0.};
+    int layeri = d_points.layer[i];
+    float xi = d_points.x[i];
+    float yi = d_points.y[i];
+
+    // get search box
+    int4 search_box =
+        d_hist[layeri].searchBox(xi - dc, xi + dc, yi - dc, yi + dc);
+
+    // loop over bins in the search box
+    for (int xBin = search_box.x; xBin < search_box.y + 1; ++xBin) {
+      for (int yBin = search_box.z; yBin < search_box.w + 1; ++yBin) {
+        // get the id of this bin
+        int binId = d_hist[layeri].getGlobalBinByBin(xBin, yBin);
+        // get the size of this bin
+        int binSize = d_hist[layeri][binId].size();
+
+        // interate inside this bin
+        for (int binIter = 0; binIter < binSize; binIter++) {
+          int j = d_hist[layeri][binId][binIter];
+          // query N_{dc_}(i)
+          float xj = d_points.x[j];
+          float yj = d_points.y[j];
+          float dist_ij_2 =
+              ((xi - xj) * (xi - xj) + (yi - yj) * (yi - yj));
+          rhoi += (dist_ij_2 <= dc*dc) * (i == j ? 1.f : 0.5f) * d_points.weight[j];
+          /*
+          if (dist_ij_2 <= dc*dc) {
+            // sum weights within N_{dc_}(i)
+            rhoi += (i == j ? 1.f : 0.5f) * d_points.weight[j];
+          }
+          */
         }  // end of interate inside this bin
       }
     }  // end of loop over bins in search box
@@ -262,7 +314,7 @@ __global__ void kernel_calculate_distanceToHigher(TilesGPU<T> *d_hist,
                                                   cudaStream_t) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-  float dm = outlierDeltaFactor * dc;
+  const float dm = outlierDeltaFactor * dc;
 
   if (i < numberOfPoints) {
     int layeri = d_points.layer[i];
@@ -291,23 +343,82 @@ __global__ void kernel_calculate_distanceToHigher(TilesGPU<T> *d_hist,
           // query N'_{dm}(i)
           float xj = d_points.x[j];
           float yj = d_points.y[j];
-          float dist_ij =
-              std::sqrt((xi - xj) * (xi - xj) + (yi - yj) * (yi - yj));
+          float dist_ij_2 =
+              ((xi - xj) * (xi - xj) + (yi - yj) * (yi - yj));
           bool foundHigher = (d_points.rho[j] > rhoi);
           // in the rare case where rho is the same, use detid
           foundHigher = foundHigher || ((d_points.rho[j] == rhoi) && (j > i));
-          if (foundHigher && dist_ij <= dm) {  // definition of N'_{dm}(i)
+          if (foundHigher && dist_ij_2 <= dm*dm) {  // definition of N'_{dm}(i)
             // find the nearest point within N'_{dm}(i)
-            if (dist_ij < deltai) {
+            if (dist_ij_2 < deltai) {
               // update deltai and nearestHigheri
-              deltai = dist_ij;
+              deltai = dist_ij_2;
               nearestHigheri = j;
             }
           }
         }  // end of interate inside this bin
       }
     }  // end of loop over bins in search box
-    d_points.delta[i] = deltai;
+    d_points.delta[i] = std::sqrt(deltai);
+    d_points.nearestHigher[i] = nearestHigheri;
+  }
+}  // kernel kernel_calculate_distanceToHigher
+
+template <typename T>
+__global__ void kernel_calculate_distanceToHigherTile(TilesGPU<T> *d_hist,
+                                                  PointsPtr d_points,
+                                                  float outlierDeltaFactor,
+                                                  float dc, int numberOfPoints,
+                                                  cudaStream_t) {
+  int layeri = blockIdx.y;
+  int globalBinOnLayer = blockIdx.x;
+  int bin = threadIdx.x;
+
+  if (bin < d_hist[layeri][globalBinOnLayer].size()) {
+    const float dm = outlierDeltaFactor * dc;
+
+    int i = d_hist[layeri][globalBinOnLayer][bin];
+    float deltai = std::numeric_limits<float>::max();
+    int nearestHigheri = -1;
+    float xi = d_points.x[i];
+    float yi = d_points.y[i];
+    float rhoi = d_points.rho[i];
+
+    // get search box
+    int4 search_box =
+        d_hist[layeri].searchBox(xi - dm, xi + dm, yi - dm, yi + dm);
+
+    // loop over all bins in the search box
+    for (int xBin = search_box.x; xBin < search_box.y + 1; ++xBin) {
+      for (int yBin = search_box.z; yBin < search_box.w + 1; ++yBin) {
+        // get the id of this bin
+        int binId = d_hist[layeri].getGlobalBinByBin(xBin, yBin);
+        // get the size of this bin
+        int binSize = d_hist[layeri][binId].size();
+
+        // interate inside this bin
+        for (int binIter = 0; binIter < binSize; binIter++) {
+          int j = d_hist[layeri][binId][binIter];
+          // query N'_{dm}(i)
+          float xj = d_points.x[j];
+          float yj = d_points.y[j];
+          float dist_ij_2 =
+              ((xi - xj) * (xi - xj) + (yi - yj) * (yi - yj));
+          bool foundHigher = (d_points.rho[j] > rhoi);
+          // in the rare case where rho is the same, use detid
+          foundHigher = foundHigher || ((d_points.rho[j] == rhoi) && (j > i));
+          if (foundHigher && dist_ij_2 <= dm*dm) {  // definition of N'_{dm}(i)
+            // find the nearest point within N'_{dm}(i)
+            if (dist_ij_2 < deltai) {
+              // update deltai and nearestHigheri
+              deltai = dist_ij_2;
+              nearestHigheri = j;
+            }
+          }
+        }  // end of interate inside this bin
+      }
+    }  // end of loop over bins in search box
+    d_points.delta[i] = std::sqrt(deltai);
     d_points.nearestHigher[i] = nearestHigheri;
   }
 }  // kernel kernel_calculate_distanceToHigher
@@ -390,7 +501,7 @@ void CLUEAlgoGPU<T, NLAYERS>::makeClusters() {
   // calculate rho, delta and find seeds
   // 1 point per thread
   ////////////////////////////////////////////
-  const dim3 blockSize(1024, 1, 1);
+  const dim3 blockSize(64, 1, 1);
   const dim3 gridSize(ceil(points_.n / static_cast<float>(blockSize.x)), 1, 1);
   kernel_compute_histogram<T>
       <<<gridSize, blockSize>>>(d_hist, d_points, points_.n, stream_);
@@ -398,6 +509,16 @@ void CLUEAlgoGPU<T, NLAYERS>::makeClusters() {
       <<<gridSize, blockSize>>>(d_hist, d_points, dc_, points_.n, stream_);
   kernel_calculate_distanceToHigher<T><<<gridSize, blockSize>>>(
       d_hist, d_points, outlierDeltaFactor_, dc_, points_.n, stream_);
+
+  /*
+  const dim3 gridSizeTile(T::nTiles, NLAYERS, 1);
+  const dim3 blockSizeTile(T::maxTileDepth, 1, 1);
+  kernel_calculate_densityTile<T>
+      <<<gridSizeTile, blockSizeTile>>>(d_hist, d_points, dc_, points_.n, stream_);
+  kernel_calculate_distanceToHigherTile<T><<<gridSizeTile, blockSizeTile>>>(
+      d_hist, d_points, outlierDeltaFactor_, dc_, points_.n, stream_);
+  */
+
   kernel_find_clusters<<<gridSize, blockSize>>>(d_seeds, d_followers, d_points,
                                                 outlierDeltaFactor_, dc_, rhoc_,
                                                 points_.n, stream_);
