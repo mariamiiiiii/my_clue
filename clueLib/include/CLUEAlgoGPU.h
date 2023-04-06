@@ -27,6 +27,9 @@ void check(T err, const char *const func, const char *const file,
   }
 }
 
+class WorkDivByPoints;
+class WorkDivByTile;
+
 static const int maxNSeeds = 100000;
 static const int maxNFollowers = 32;
 static const int localStackSizePerSeed = 32;
@@ -48,7 +51,7 @@ struct PointsPtr {
 // allowed ranges spanned. Anchillary quantitied, like the inverse of the bin
 // width should also be provided. Code will not compile if any such information
 // is missing.
-template <typename T, int NLAYERS>
+template <typename T, int NLAYERS, typename W=WorkDivByPoints>
 class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
   // inherit from CLUEAlgo
 
@@ -492,8 +495,8 @@ __global__ void kernel_assign_clusters(
   }
 }  // kernel kernel_assign_clusters
 
-template <typename T, int NLAYERS>
-void CLUEAlgoGPU<T, NLAYERS>::makeClusters() {
+template <typename T, int NLAYERS, typename W>
+void CLUEAlgoGPU<T, NLAYERS, W>::makeClusters() {
   copy_todevice();
   clear_internal_buffers();
 
@@ -505,19 +508,22 @@ void CLUEAlgoGPU<T, NLAYERS>::makeClusters() {
   const dim3 gridSize(ceil(points_.n / static_cast<float>(blockSize.x)), 1, 1);
   kernel_compute_histogram<T>
       <<<gridSize, blockSize>>>(d_hist, d_points, points_.n, stream_);
-  kernel_calculate_density<T>
-      <<<gridSize, blockSize>>>(d_hist, d_points, dc_, points_.n, stream_);
-  kernel_calculate_distanceToHigher<T><<<gridSize, blockSize>>>(
-      d_hist, d_points, outlierDeltaFactor_, dc_, points_.n, stream_);
 
-  /*
-  const dim3 gridSizeTile(T::nTiles, NLAYERS, 1);
-  const dim3 blockSizeTile(T::maxTileDepth, 1, 1);
-  kernel_calculate_densityTile<T>
+  if constexpr (std::is_same_v<W, WorkDivByPoints>) {
+    kernel_calculate_density<T>
+      <<<gridSize, blockSize>>>(d_hist, d_points, dc_, points_.n, stream_);
+    kernel_calculate_distanceToHigher<T><<<gridSize, blockSize>>>(
+        d_hist, d_points, outlierDeltaFactor_, dc_, points_.n, stream_);
+  }
+
+  if constexpr (std::is_same_v<W, WorkDivByTile>) {
+    const dim3 gridSizeTile(T::nTiles, NLAYERS, 1);
+    const dim3 blockSizeTile(T::maxTileDepth, 1, 1);
+    kernel_calculate_densityTile<T>
       <<<gridSizeTile, blockSizeTile>>>(d_hist, d_points, dc_, points_.n, stream_);
-  kernel_calculate_distanceToHigherTile<T><<<gridSizeTile, blockSizeTile>>>(
-      d_hist, d_points, outlierDeltaFactor_, dc_, points_.n, stream_);
-  */
+    kernel_calculate_distanceToHigherTile<T><<<gridSizeTile, blockSizeTile>>>(
+        d_hist, d_points, outlierDeltaFactor_, dc_, points_.n, stream_);
+  }
 
   kernel_find_clusters<<<gridSize, blockSize>>>(d_seeds, d_followers, d_points,
                                                 outlierDeltaFactor_, dc_, rhoc_,
