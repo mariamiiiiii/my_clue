@@ -4,8 +4,10 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <regex>
 #include <string>
+#include <numeric>
 
 #include "CLUEAlgo.h"
 
@@ -22,6 +24,27 @@
 #define NLAYERS 100
 
 using namespace std;
+
+void exclude_outliers(std::vector<float>& v) {
+  float mean = std::accumulate(v.begin(), v.end(), 0.0) / v.size();
+  float sum_sq_diff = std::accumulate(v.begin(), v.end(), 0.0,
+      [mean](float acc, float x) { return acc + (x - mean) * (x - mean); });
+  float stddev = std::sqrt(sum_sq_diff / (v.size() - 1));
+  std::cout << "Sigma cut outliers: " << stddev << std::endl;
+  float z_score_threshold = 3.0;
+  v.erase(std::remove_if(v.begin(), v.end(),
+        [mean, stddev, z_score_threshold](float x) {
+        float z_score = std::abs(x - mean) / stddev;
+        return z_score > z_score_threshold;
+        }), v.end());
+}
+
+pair<float, float> stats(const std::vector<float>& v) {
+  float m = std::accumulate(v.begin(), v.end(), 0.0) / v.size();
+  float sum = std::accumulate(v.begin(), v.end(), 0.0,
+      [m](float acc, float x) { return acc + (x - m) * (x - m); });
+  return {m, sum / (v.size() - 1)};
+}
 
 void readDataFromFile(const std::string &inputFileName, std::vector<float> &x,
                       std::vector<float> &y, std::vector<int> &layer,
@@ -94,6 +117,7 @@ void mainRun(const std::string &inputFileName,
     std::cout << "Native CUDA Backend selected" << std::endl;
     CLUEAlgoGPU<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor,
                                                   verbose);
+    vector<float> vals;
     for (unsigned r = 0; r < repeats; r++) {
       if (!clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
         exit(EXIT_FAILURE);
@@ -104,10 +128,54 @@ void mainRun(const std::string &inputFileName,
       std::chrono::duration<double> elapsed = finish - start;
       std::cout << "Iteration " << r;
       std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
+      // Skip first event
+      if (r != 0) {
+        vals.push_back(elapsed.count() * 1000);
+      }
     }
+
+    int precision=2;
+    float mean=0.f;
+    float sigma=0.f;
+    exclude_outliers(vals);
+    tie(mean, sigma) = stats(vals);
+    std::cout << "SUMMARY WorkDivByPoints: 1 outliers(" << repeats << "/" << vals.size() << ") " << std::fixed << std::setprecision(precision) << mean << " +/- " << sigma << std::endl;
+    exclude_outliers(vals);
+    tie(mean, sigma) = stats(vals);
+    std::cout << "SUMMARY WorkDivByPoints: 2 outliers(" << repeats << "/" << vals.size() << ") " << std::fixed << std::setprecision(precision) << mean << " +/- " << sigma << std::endl;
 
     // output result to outputFileName. -1 means all points.
     clueAlgo.verboseResults(outputFileName, -1);
+
+    std::cout << "Native CUDA Backend selected WorkDivByTile" << std::endl;
+    CLUEAlgoGPU<TilesConstants, NLAYERS, WorkDivByTile> clueAlgoByTile(dc, rhoc, outlierDeltaFactor,
+                                                  verbose);
+    vals.clear();
+    for (unsigned r = 0; r < repeats; r++) {
+      if (!clueAlgoByTile.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
+        exit(EXIT_FAILURE);
+      // measure excution time of makeClusters
+      auto start = std::chrono::high_resolution_clock::now();
+      clueAlgoByTile.makeClusters();
+      auto finish = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> elapsed = finish - start;
+      std::cout << "Iteration " << r;
+      std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
+      // Skip first event
+      if (r != 0) {
+        vals.push_back(elapsed.count() * 1000);
+      }
+    }
+
+    exclude_outliers(vals);
+    tie(mean, sigma) = stats(vals);
+    std::cout << "SUMMARY WorkDivByTile: 1 outliers(" << repeats << "/" << vals.size() << ") " << std::fixed << std::setprecision(precision) << mean << " +/- " << sigma << std::endl;
+    exclude_outliers(vals);
+    tie(mean, sigma) = stats(vals);
+    std::cout << "SUMMARY WorkDivByTile: 2 outliers(" << repeats << "/" << vals.size() << ") " << std::fixed << std::setprecision(precision) << mean << " +/- " << sigma << std::endl;
+
+    // output result to outputFileName. -1 means all points.
+    clueAlgoByTile.verboseResults(outputFileName, -1);
 #elif defined(USE_ALPAKA)
     std::cout << "ALPAKA 'Backend' selected" << std::endl;
     using namespace alpaka;
