@@ -44,7 +44,7 @@ make
 CLUE needs three parameters:
   * `dc`
   * `rhoc`
-  * `outlierDeltaFacto`
+  * `outlierDeltaFactor`
 
 1. _dc_ is the critical distance used to compute the local density.
 1. _rhoc_ is the minimum local density for a point to be promoted as a Seed.
