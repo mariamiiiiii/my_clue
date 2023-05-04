@@ -5,7 +5,7 @@
 if(CMAKE_CUDA_COMPILER)
   set_source_files_properties(${PROJECT_SOURCE_DIR}/src/main.cc PROPERTIES LANGUAGE CUDA)
   add_executable(main ${PROJECT_SOURCE_DIR}/src/main.cc)
-  
+
   target_compile_definitions(main PRIVATE)
   target_compile_options(main PRIVATE
   $<$<COMPILE_LANGUAGE:CUDA>:
@@ -16,7 +16,7 @@ if(CMAKE_CUDA_COMPILER)
   >
   )
 
-  target_link_libraries(main PRIVATE CLUELib CLUELibGPU)
+  target_link_libraries(main PRIVATE CLUELib)
 
   target_include_directories(main PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>

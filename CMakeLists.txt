@@ -1,16 +1,21 @@
 cmake_minimum_required(VERSION 3.8)
 
-# Location of the cupla
-set(cupla_DIR ${CMAKE_CURRENT_SOURCE_DIR}/cupla CACHE PATH "Path to CUPLA (by default: submodule)")
-
-# Location of TBB
-set(TBB_DIR "/cvmfs/cms.cern.ch/slc7_amd64_gcc820/external/tbb/2020_U2-ghbfee/cmake/TBB/")
-
 project(
   CLUE
-  VERSION 1.0.0
+  VERSION 1.1.0
   DESCRIPTION "The CLUstering by Energy algorithm"
   LANGUAGES CXX)
+
+# Location of the ALPAKA
+set(ALPAKA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/alpaka CACHE PATH "Path to ALPAKA (by default: submodule)")
+
+# Location of TBB
+#set(TBB_DIR "/cvmfs/cms.cern.ch/slc7_amd64_gcc820/external/tbb/2020_U2-ghbfee/cmake/TBB/")
+
+set(CHECK_CUDA_VERSION ON CACHE BOOL "Check CUDA Runtime version.")
+
+# Activate VERBOSE output
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Check for CUDA
 include(CheckLanguage)
@@ -19,9 +24,11 @@ if(CMAKE_CUDA_COMPILER)
   enable_language(CUDA)
   set(CMAKE_CXX_STANDARD 17)
   set(CMAKE_CUDA_ARCHITECTURES "60;70;75")
-  set(MAX_CUDA_VERSION "11.2.142")
-  if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER ${MAX_CUDA_VERSION})
-    message(FATAL_ERROR "Max supported NVCC is ${MAX_CUDA_VERSION}")
+  if(CHECK_CUDA_VERSION)
+    set(MAX_CUDA_VERSION "11.2.142")
+    if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER ${MAX_CUDA_VERSION})
+      message(FATAL_ERROR "Max supported NVCC is ${MAX_CUDA_VERSION}")
+    endif()
   endif()
 else()
   message(STATUS "No CUDA compiler found. Still, you can run the C++ version!")
@@ -52,6 +59,31 @@ endif()
 
 add_subdirectory(clueLib)
 add_subdirectory(src)
+
+# SOME TESTS
+enable_testing()
+function(run_test_cpu target label repeats)
+  FILE(GLOB inputs "${CMAKE_CURRENT_SOURCE_DIR}/data/input/*.csv")
+  foreach(input_file IN LISTS inputs)
+    add_test(NAME ${input_file}_${label}_CPU COMMAND ${target} -i ${input_file} -d 7.0 -r10.0 -o 2 -e ${repeats} -v)
+  endforeach()
+endfunction()
+
+function(run_test_gpu target label repeats)
+  FILE(GLOB inputs "${CMAKE_CURRENT_SOURCE_DIR}/data/input/*.csv")
+  foreach(input_file IN LISTS inputs)
+    add_test(NAME ${input_file}_${label}_GPU COMMAND ${target} -i ${input_file} -d 7.0 -r10.0 -o 2 -e ${repeats} -v -u)
+  endforeach()
+endfunction()
+
+if(CMAKE_CUDA_COMPILER)
+  run_test_cpu(./src/clue/main main 4)
+  run_test_cpu(./src/clue_cuda_alpaka/mainAlpakaCUDA Alpaka 4)
+  run_test_gpu(./src/clue/main CUDA 100)
+  run_test_gpu(./src/clue_cuda_alpaka/mainAlpakaCUDA AlpakaCUDA 100)
+else()
+  run_test_cpu(./src/clue_tbb_alpaka/mainAlpakaTBB TBB 4)
+endif()
 
 #--- add version files ---------------------------------------------------------
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CLUEVersion.h
