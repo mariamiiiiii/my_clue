@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.8)
 
 project(
   CLUE
-  VERSION 1.0.0
+  VERSION 1.1.0
   DESCRIPTION "The CLUstering by Energy algorithm"
   LANGUAGES CXX)
 
