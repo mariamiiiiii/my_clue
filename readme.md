@@ -13,13 +13,10 @@ The pre-requisite dependencies are `>=gcc7`, `<=gcc8.3`, `Boost`, `TBB`. Fork th
 If CUDA/nvcc are found on the machine, the compilation is performed automatically also for the GPU case.
 The path to the nvcc compiler will be automatically taken from the machine. In this case, `>=cuda10` and `<=nvcc11.2` are also required.
 
-* **On a CERN machine with GPUs:** Source the LCG View containing the correct version of GCC and Boost:
+* **On a CERN machine with GPUs:** Source the LCG View containing GCC, Boost
+and CUDA:
 ```bash
-source /cvmfs/sft.cern.ch/lcg/views/LCG_96/x86_64-centos7-gcc8-opt/setup.sh
-source /cvmfs/sft.cern.ch/lcg/contrib/gcc/8.3.0/x86_64-centos7/setup.sh
-
-# Get nvcc 11.2, if needed
-source /cvmfs/sft.cern.ch/lcg/releases/cuda/11.2-5cee1/x86_64-centos7-gcc8-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
 
 # then setup this project
 git clone --recurse-submodules https://gitlab.cern.ch/kalos/clue.git
@@ -44,24 +41,38 @@ make
 ```
 
 ### 2. Run CLUE
-CLUE needs three parameters: `dc`, `rhoc` and `outlierDeltaFactor` (in the past four parameters were needed: `dc`, `deltao`, `deltac` and `rhoc`)
+CLUE needs three parameters:
+  * `dc`
+  * `rhoc`
+  * `outlierDeltaFacto`
 
-_dc_ is the critical distance used to compute the local density.
-_rhoc_ is the minimum local density for a point to be promoted as a Seed.
-_outlierDeltaFactor_ is  a multiplicative constant to be applied to `dc`.
+1. _dc_ is the critical distance used to compute the local density.
+1. _rhoc_ is the minimum local density for a point to be promoted as a Seed.
+1. _outlierDeltaFactor_ is  a multiplicative constant to be applied to `dc`.
 
-( _deltao_ is the maximum distance for a point to be linked to a nearest higher
-point.
- _deltac_ is the minimum distance for a local high density point to be promoted
-as a Seed. )
+The test program accept the following parameter from the command line:
+
+* `-i input_filename`: input file with the points to be clustered
+* `-d critical_distance`: the critical distance to be used
+* `-r critical_density`: the critical density to be used
+* `-o outlier_factor`: the multiplicative constant to be applied as outlier
+  rejection factor
+* `-e sessions`: number of times the clustering algorithm has to run on the
+  same input dataset. That's useful to have a more reliable measure of the
+  timing performance.
+* `-t number_TBB_threads`: set the number of TBB threads to be used (when this
+  makes sense)
+* `-u use_accelerator`: enable the GPU version of the executable run. Every
+  single executable, in fact, has both the CPU and the GPU version embedded.
+* `-v verbose`: activate verbose output. Among other things, this will also
+  enable the saving of the results of the clustering steps in local text files.
 
 If the projects compiles without errors, you can go run the CLUE algorithm by
 ```bash
-# ./build/src/clue/main [fileName] [dc] [rhoc] [outlierDeltaFactor] [useGPU] [totalNumberOfEvent] [verbose]
-./build/src/clue/main data/input/aniso_1000.csv 20 25 2 0 10 1
+./build/src/clue/main -i data/input/aniso_1000.csv -d 7.0 -r 10.0 -o 2 -e 10 -v -u
 
-#in case of only CPU
-#./build/src/clue_tbb_cupla/mainCuplaCPUTBB data/input/aniso_1000.csv 20 25 2 0 10 1
+# in case of only CPU
+./build/src/clue/main -i data/input/aniso_1000.csv -d 7.0 -r 10.0 -o 2 -e 10 -v
 ```
 
 The input files are `data/input/*.csv` with columns 
