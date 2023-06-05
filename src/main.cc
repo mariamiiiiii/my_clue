@@ -25,7 +25,9 @@
 
 using namespace std;
 
-void exclude_outliers(std::vector<float> &v) {
+void exclude_stats_outliers(std::vector<float> &v) {
+  if (v.size() == 1)
+    return;
   float mean = std::accumulate(v.begin(), v.end(), 0.0) / v.size();
   float sum_sq_diff = std::accumulate(
       v.begin(), v.end(), 0.0,
@@ -46,7 +48,8 @@ pair<float, float> stats(const std::vector<float> &v) {
   float sum = std::accumulate(v.begin(), v.end(), 0.0, [m](float acc, float x) {
     return acc + (x - m) * (x - m);
   });
-  return {m, std::sqrt(sum / (v.size() - 1))};
+  auto den = v.size() > 1 ? (v.size() - 1) : v.size();
+  return {m, std::sqrt(sum / den)};
 }
 
 void printTimingReport(std::vector<float> &vals, int repeats,
@@ -54,12 +57,12 @@ void printTimingReport(std::vector<float> &vals, int repeats,
   int precision = 2;
   float mean = 0.f;
   float sigma = 0.f;
-  exclude_outliers(vals);
+  exclude_stats_outliers(vals);
   tie(mean, sigma) = stats(vals);
   std::cout << label << " 1 outliers(" << repeats << "/" << vals.size() << ") "
             << std::fixed << std::setprecision(precision) << mean << " +/- "
             << sigma << " [ms]" << std::endl;
-  exclude_outliers(vals);
+  exclude_stats_outliers(vals);
   tie(mean, sigma) = stats(vals);
   std::cout << label << " 2 outliers(" << repeats << "/" << vals.size() << ") "
             << std::fixed << std::setprecision(precision) << mean << " +/- "
@@ -151,7 +154,7 @@ void mainRun(const std::string &inputFileName,
       std::cout << "Iteration " << r;
       std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
       // Skip first event
-      if (r != 0) {
+      if (r != 0 or repeats == 1) {
         vals.push_back(elapsed.count() * 1000);
       }
     }
@@ -177,7 +180,7 @@ void mainRun(const std::string &inputFileName,
       std::cout << "Iteration " << r;
       std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
       // Skip first event
-      if (r != 0) {
+      if (r != 0 or repeats == 1) {
         vals.push_back(elapsed.count() * 1000);
       }
     }
@@ -207,7 +210,7 @@ void mainRun(const std::string &inputFileName,
       std::cout << "Iteration " << r;
       std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
       // Skip first event
-      if (r != 0) {
+      if (r != 0 or repeats == 1) {
         vals.push_back(elapsed.count() * 1000);
       }
     }
@@ -232,7 +235,7 @@ void mainRun(const std::string &inputFileName,
       std::chrono::duration<double> elapsed = finish - start;
       std::cout << "Elapsed time: " << elapsed.count() * 1000 << " ms\n";
       // Skip first event
-      if (r != 0) {
+      if (r != 0 or repeats == 1) {
         vals.push_back(elapsed.count() * 1000);
       }
     }
