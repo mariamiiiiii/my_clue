@@ -19,21 +19,26 @@
 template <typename T, int NLAYERS>
 class CLUEAlgo {
  public:
-  CLUEAlgo(float dc, float rhoc, float outlierDeltaFactor, bool verbose) {
+  CLUEAlgo(float dc, float kappa, float outlierDeltaFactor, bool verbose) {
     dc_ = dc;
-    rhoc_ = rhoc;
+    kappa_ = kappa;
     outlierDeltaFactor_ = outlierDeltaFactor;
     verbose_ = verbose;
+    numberOfClusters_ = 0;
   }
+  CLUEAlgo(){}
   ~CLUEAlgo() {}
 
   // public variables
-  float dc_, rhoc_, outlierDeltaFactor_;
+  float dc_, kappa_, outlierDeltaFactor_;
   bool verbose_;
+
+  int numberOfClusters_;
+  int getNumberOfClusters(){return numberOfClusters_;}
 
   Points points_;
 
-  int copyPoints(int n, float* x, float* y, int* layer, float* weight) {
+  int copyPoints(int n, float* x, float* y, int* layer, float* weight, float* sigmaNoise) {
     points_.clear();
     // Reserve, first
     points_.n = n;
@@ -41,16 +46,19 @@ class CLUEAlgo {
     points_.y.resize(n);
     points_.layer.resize(n);
     points_.weight.resize(n);
+    points_.sigmaNoise.resize(n);
     // Copy, next
     std::copy(x, x + n, std::begin(points_.x));
     std::copy(y, y + n, std::begin(points_.y));
     std::copy(layer, layer + n, std::begin(points_.layer));
     std::copy(weight, weight + n, std::begin(points_.weight));
+    std::copy(sigmaNoise, sigmaNoise + n, std::begin(points_.sigmaNoise));
 
     points_.p_x = points_.x.data();
     points_.p_y = points_.y.data();
     points_.p_layer = points_.layer.data();
     points_.p_weight = points_.weight.data();
+    points_.p_sigmaNoise = points_.sigmaNoise.data();
 
     resizeOutputContainers();
 
@@ -59,7 +67,9 @@ class CLUEAlgo {
 
   int copyPoints(const std::vector<float>& x, const std::vector<float>& y,
                  const std::vector<int>& layer,
-                 const std::vector<float>& weight) {
+                 const std::vector<float>& weight,
+                 const std::vector<float>& sigmaNoise
+                 ) {
     points_.clear();
     auto const n = x.size();
     points_.n = n;
@@ -76,10 +86,14 @@ class CLUEAlgo {
     points_.weight.resize(n);
     std::copy(std::begin(weight), std::end(weight), std::begin(points_.weight));
 
+    points_.sigmaNoise.resize(n);
+    std::copy(std::begin(sigmaNoise), std::end(sigmaNoise), std::begin(points_.sigmaNoise));
+
     points_.p_x = points_.x.data();
     points_.p_y = points_.y.data();
     points_.p_layer = points_.layer.data();
     points_.p_weight = points_.weight.data();
+    points_.p_sigmaNoise = points_.sigmaNoise.data();
 
     resizeOutputContainers();
 
@@ -87,13 +101,14 @@ class CLUEAlgo {
   }
 
   int setPoints(int n, const float* x, const float* y, const int* layer,
-                const float* weight) {
+                const float* weight, const float* sigmaNoise) {
     points_.clear();
     points_.n = n;
     points_.p_x = x;
     points_.p_y = y;
     points_.p_layer = layer;
     points_.p_weight = weight;
+    points_.p_sigmaNoise = sigmaNoise;
 
     resizeOutputContainers();
 
@@ -101,7 +116,8 @@ class CLUEAlgo {
   }
 
   int setPoints(std::vector<float>& x, std::vector<float>& y,
-                std::vector<int>& layer, std::vector<float>& weight) {
+                std::vector<int>& layer, std::vector<float>& weight, std::vector<float>& sigmaNoise) {
+    // std::cout << "STANDALONE: start setPosition" << std::endl;
     points_.clear();
     auto const n = x.size();
     points_.n = n;
@@ -111,14 +127,31 @@ class CLUEAlgo {
     points_.y.swap(y);
     points_.layer.swap(layer);
     points_.weight.swap(weight);
+    points_.sigmaNoise.swap(sigmaNoise);
 
     points_.p_x = points_.x.data();
     points_.p_y = points_.y.data();
     points_.p_layer = points_.layer.data();
     points_.p_weight = points_.weight.data();
+    points_.p_sigmaNoise = points_.sigmaNoise.data();
 
     resizeOutputContainers();
 
+    // std::cout << "STANDALONE: end setPosition" << std::endl;
+    return points_.n;
+   
+  }
+
+  int getPoints(std::vector<float>& delta, std::vector<int>& nearestHigher,
+                std::vector<int>& clusterIndex, std::vector<float>& rho, std::vector<uint8_t>& isSeed, std::vector<int>& layer, std::vector<float>& weight) {
+
+    delta.swap(points_.delta);
+    nearestHigher.swap(points_.nearestHigher);
+    clusterIndex.swap(points_.clusterIndex);
+    rho.swap(points_.rho);
+    isSeed.swap(points_.isSeed);
+    layer.swap(points_.layer);
+    weight.swap(points_.weight);
     return points_.n;
   }
 
@@ -191,10 +224,13 @@ void CLUEAlgo<T, NLAYERS>::verboseResults(
 template <typename T, int NLAYERS>
 void CLUEAlgo<T, NLAYERS>::makeClusters() {
   std::array<Tiles<T>, NLAYERS> allLayerTiles;
+  // std::cout << "STANDALONE: start makeClusters.." << std::endl;
   // start clustering
   auto start = std::chrono::high_resolution_clock::now();
 
+  // std::cout << "STANDALONE: before prepare" << std::endl;
   prepareDataStructures(allLayerTiles);
+  // std::cout << "STANDALONE: after prepare datastructures  makeClusters" << std::endl;
   auto finish = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = finish - start;
   std::cout << "--- prepareDataStructures:     " << elapsed.count() * 1000
@@ -214,7 +250,9 @@ void CLUEAlgo<T, NLAYERS>::makeClusters() {
   std::cout << "--- calculateDistanceToHigher: " << elapsed.count() * 1000
             << " ms\n";
 
+
   findAndAssignClusters();
+  // std::cout << "STANDALONE: end makeClusters" << std::endl;
 }
 
 template <typename T, int NLAYERS>
@@ -230,7 +268,7 @@ template <typename T, int NLAYERS>
 void CLUEAlgo<T, NLAYERS>::calculateLocalDensity(
     std::array<Tiles<T>, NLAYERS>& allLayerTiles) {
   // loop over all points
-  for (unsigned i = 0; i < points_.n; i++) {
+  for (int i = 0; i < points_.n; i++) {
     Tiles<T>& lt = allLayerTiles[points_.p_layer[i]];
 
     // get search box
@@ -266,7 +304,7 @@ void CLUEAlgo<T, NLAYERS>::calculateDistanceToHigher(
     std::array<Tiles<T>, NLAYERS>& allLayerTiles) {
   // loop over all points
   float dm = outlierDeltaFactor_ * dc_;
-  for (unsigned i = 0; i < points_.n; i++) {
+  for (int i = 0; i < points_.n; i++) {
     // default values of delta and nearest higher for i
     float delta_i = std::numeric_limits<float>::max();
     int nearestHigher_i = -1;
@@ -321,7 +359,8 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters() {
   // find cluster seeds and outlier
   std::vector<int> localStack;
   // loop over all points
-  for (unsigned i = 0; i < points_.n; i++) {
+  std::cout << "Number of points: " << points_.n << std::endl;
+  for (int i = 0; i < points_.n; i++) {
     // initialize clusterIndex
     points_.clusterIndex[i] = -1;
 
@@ -329,8 +368,9 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters() {
     float rhoi = points_.rho[i];
 
     // determine seed or outlier
-    bool isSeed = (deltai > dc_) and (rhoi >= rhoc_);
-    bool isOutlier = (deltai > outlierDeltaFactor_ * dc_) and (rhoi < rhoc_);
+    float rhoc = points_.sigmaNoise[i] * kappa_;
+    bool isSeed = (deltai > dc_) and (rhoi >= rhoc);
+    bool isOutlier = (deltai > outlierDeltaFactor_ * dc_) and (rhoi < rhoc);
     if (isSeed) {
       // set isSeed as 1
       points_.isSeed[i] = 1;
@@ -345,6 +385,7 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters() {
       points_.followers[points_.nearestHigher[i]].push_back(i);
     }
   }
+  numberOfClusters_ = nClusters;
 
   auto finish = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = finish - start;
