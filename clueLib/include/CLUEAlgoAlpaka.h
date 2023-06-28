@@ -86,6 +86,7 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
   using CLUEAlgo<T, NLAYERS>::outlierDeltaFactor_;
   using CLUEAlgo<T, NLAYERS>::verbose_;
   using CLUEAlgo<T, NLAYERS>::points_;
+  using CLUEAlgo<T, NLAYERS>::numberOfClusters_;
 
   struct PointsBuf {
     // Input Buffers
@@ -118,7 +119,7 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
       float *delta;
       int *nearestHigher;
       int *clusterIndex;
-      int *isSeed;
+      uint8_t *isSeed;
 
       // LayerTiles and utility data structures
       TilesAlpaka<TAcc, T> *hist_;
@@ -150,6 +151,8 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
   ~CLUEAlgoAlpaka() { free_device(); }
 
   void makeClusters();
+  void makeClustersCMSSW(int points, const float * x, const float * y, const int * layer, const float * weight, const float * sigmaNoise,
+   float * rho, float * delta, int * nearestHigher, int * clusterIndex,  uint8_t * isSeed);
 
  private:
   alpaka::Dev<TAcc> device_;
@@ -196,7 +199,7 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
     device_bufs_.clusterIndex =
         std::make_optional(alpaka::allocBuf<int, Idx>(device_, extents));
     device_bufs_.isSeed =
-        std::make_optional(alpaka::allocBuf<int, Idx>(device_, extents));
+        std::make_optional(alpaka::allocBuf<uint8_t, Idx>(device_, extents));
 
     // INTERNAL VARIABLES
     alpaka::Vec<Dim, Idx> const layerTilesExtents(static_cast<Idx>(NLAYERS));
@@ -525,7 +528,6 @@ auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
 
 template <typename TAcc, typename T, int NLAYERS>
 void CLUEAlgoAlpaka<TAcc, T, NLAYERS>::makeClusters() {
-  copy_todevice();
   clear_internal_buffers();
 
   // Dimension the grid for submission
@@ -622,4 +624,104 @@ void CLUEAlgoAlpaka<TAcc, T, NLAYERS>::makeClusters() {
             << "ms\n";
 
   copy_tohost();
+}
+
+
+template <typename TAcc, typename T, int NLAYERS>
+void CLUEAlgoAlpaka<TAcc, T, NLAYERS>::makeClustersCMSSW(int points,
+   const float* x, const float * y, const int * layer, const float * weight, const float * sigmaNoise,
+   float * rho, float * delta, int * nearestHigher, int * clusterIndex,  uint8_t * isSeed) {
+  // SET INPUT AND OUTPUT POINTERS
+  // TBD
+
+  // INTERNAL TILES VARIABLES
+  Idx const reserve = 1000000;
+  // If Dim is not 1, fail compilation. This is assumed to be a
+  // mono-dimensional problem
+  static_assert(Dim::value == 1u);
+  alpaka::Vec<Dim, Idx> const extents(reserve);
+
+  alpaka::Vec<Dim, Idx> const layerTilesExtents(static_cast<Idx>(NLAYERS));
+  device_hist_ = std::make_optional(
+      alpaka::allocBuf<LayerTilesAcc, Idx>(device_, layerTilesExtents));
+  alpaka::Vec<Dim, Idx> const seedsExtents(1u);
+  device_seeds_ = std::make_optional(
+      alpaka::allocBuf<GPUAlpaka::VecArray<int, maxNSeeds>, Idx>(
+        device_, seedsExtents));
+  device_followers_ = std::make_optional(
+      alpaka::allocBuf<GPUAlpaka::VecArray<int, maxNFollowers>, Idx>(
+        device_, extents));
+  // INTERNAL VARIABLES RESETTING
+  alpaka::memset(queue_, device_hist_.value(), 0x0, layerTilesExtents);
+
+  // Set Device Raw Pointers using values from outsice and also internal buffers
+  device_runner_.ptrs_.x = const_cast<float *>(x);
+  device_runner_.ptrs_.y = const_cast<float *>(y);
+  device_runner_.ptrs_.layer = const_cast<int *>(layer);
+  device_runner_.ptrs_.weight = const_cast<float *>(weight);
+  device_runner_.ptrs_.sigmaNoise = const_cast<float *>(sigmaNoise);
+
+  // RESULT VARIABLES
+  device_runner_.ptrs_.rho = rho;
+  device_runner_.ptrs_.delta = delta;
+  device_runner_.ptrs_.nearestHigher = nearestHigher;
+  device_runner_.ptrs_.clusterIndex = clusterIndex;
+  device_runner_.ptrs_.isSeed = isSeed;
+
+  // UPDATE RAW POINTERS FOR INTERNATL DATA STRUCTURES
+  device_runner_.ptrs_.hist_ = alpaka::getPtrNative(device_hist_.value());
+  device_runner_.ptrs_.seeds_ = alpaka::getPtrNative(device_seeds_.value());
+  device_runner_.ptrs_.followers_ = alpaka::getPtrNative(device_followers_.value());
+
+  // Dimension the grid for submission
+  alpaka::Vec<Dim, Idx> const threadsPerBlock(1024u);
+  alpaka::Vec<Dim, Idx> const blocksPerGrid(
+      static_cast<Idx>(ceil(points / (float)threadsPerBlock[0])));
+  alpaka::Vec<Dim, Idx> const elementsPerThread(1u);
+  using WorkDiv = alpaka::WorkDivMembers<Dim, Idx>;
+  auto const manualWorkDiv =
+      WorkDiv{blocksPerGrid, threadsPerBlock, elementsPerThread};
+  std::cout << manualWorkDiv << std::endl;
+
+  // Create the kernel execution tasks.
+  typename CLUEAlgoAlpaka<TAcc, T,
+                          NLAYERS>::DeviceRunner::KernelComputeHistogram
+      taskComputeHistogram;
+  auto const kernelComputeHistogram = (alpaka::createTaskKernel<TAcc>(
+      manualWorkDiv, device_runner_, taskComputeHistogram,
+      static_cast<int>(points)));
+
+  typename CLUEAlgoAlpaka<TAcc, T,
+                          NLAYERS>::DeviceRunner::KernelComputeLocalDensity
+      taskComputeLocalDensity;
+  auto const kernelComputeLocalDensity = (alpaka::createTaskKernel<TAcc>(
+      manualWorkDiv, device_runner_, taskComputeLocalDensity, dc_,
+      static_cast<int>(points)));
+
+  typename CLUEAlgoAlpaka<TAcc, T,
+                          NLAYERS>::DeviceRunner::KernelComputeDistanceToHigher
+      taskComputeDistanceToHigher;
+  auto const kernelComputeDistanceToHigher = (alpaka::createTaskKernel<TAcc>(
+      manualWorkDiv, device_runner_, taskComputeDistanceToHigher,
+      outlierDeltaFactor_, dc_, static_cast<int>(points)));
+
+  typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelFindClusters
+      taskFindClusters;
+  auto const kernelFindClusters = (alpaka::createTaskKernel<TAcc>(
+      manualWorkDiv, device_runner_, taskFindClusters, outlierDeltaFactor_, dc_,
+      kappa_, static_cast<int>(points)));
+
+  typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelAssignClusters
+      taskAssignClusters;
+  auto const kernelAssignClusters = (alpaka::createTaskKernel<TAcc>(
+      manualWorkDiv, device_runner_, taskAssignClusters));
+
+  // Enqueue the kernel execution task
+
+  alpaka::enqueue(queue_, kernelComputeHistogram);
+  alpaka::enqueue(queue_, kernelComputeLocalDensity);
+  alpaka::enqueue(queue_, kernelComputeDistanceToHigher);
+  alpaka::enqueue(queue_, kernelFindClusters);
+  alpaka::enqueue(queue_, kernelAssignClusters);
+  //copy_tohost();
 }

@@ -159,7 +159,7 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
     CHECK_CUDA_ERROR(cudaMemcpyAsync(d_points.weight, points_.p_weight,
                                      sizeof(float) * points_.n,
                                      cudaMemcpyHostToDevice, stream_));
-    CHECK_CUDA_ERROR(cudaMemcpyAsync(d_points.sigmaNoise, points_.sigmaNoise,
+    CHECK_CUDA_ERROR(cudaMemcpyAsync(d_points.sigmaNoise, points_.p_sigmaNoise,
                                      sizeof(float) * points_.n,
                                      cudaMemcpyHostToDevice, stream_));
   }
@@ -446,7 +446,7 @@ __global__ void kernel_find_clusters(
     // determine seed or outlier
     float deltai = d_points.delta[i];
     float rhoi = d_points.rho[i];
-    float rhoc = points_.sigmaNoise[i] * kappa;
+    float rhoc = d_points.sigmaNoise[i] * kappa;
     bool isSeed = (deltai > dc) && (rhoi >= rhoc);
     bool isOutlier = (deltai > outlierDeltaFactor * dc) && (rhoi < rhoc);
 

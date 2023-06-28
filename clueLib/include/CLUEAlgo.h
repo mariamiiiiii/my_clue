@@ -38,6 +38,29 @@ class CLUEAlgo {
 
   Points points_;
 
+  int copyPoints(int n, float* x, float* y, int* layer, float* weight) {
+    points_.clear();
+    // Reserve, first
+    points_.n = n;
+    points_.x.resize(n);
+    points_.y.resize(n);
+    points_.layer.resize(n);
+    points_.weight.resize(n);
+    // Copy, next
+    std::copy(x, x + n, std::begin(points_.x));
+    std::copy(y, y + n, std::begin(points_.y));
+    std::copy(layer, layer + n, std::begin(points_.layer));
+    std::copy(weight, weight + n, std::begin(points_.weight));
+
+    points_.p_x = points_.x.data();
+    points_.p_y = points_.y.data();
+    points_.p_layer = points_.layer.data();
+    points_.p_weight = points_.weight.data();
+
+    resizeOutputContainers();
+
+    return points_.n;
+  }
   int copyPoints(int n, float* x, float* y, int* layer, float* weight, float* sigmaNoise) {
     points_.clear();
     // Reserve, first
@@ -65,6 +88,36 @@ class CLUEAlgo {
     return points_.n;
   }
 
+  int copyPoints(const std::vector<float>& x, const std::vector<float>& y,
+                 const std::vector<int>& layer,
+                 const std::vector<float>& weight
+                 ) {
+    points_.clear();
+    auto const n = x.size();
+    points_.n = n;
+    // input variables
+    points_.x.resize(n);
+    std::copy(std::begin(x), std::end(x), std::begin(points_.x));
+
+    points_.y.resize(n);
+    std::copy(std::begin(y), std::end(y), std::begin(points_.y));
+
+    points_.layer.resize(n);
+    std::copy(std::begin(layer), std::end(layer), std::begin(points_.layer));
+
+    points_.weight.resize(n);
+    std::copy(std::begin(weight), std::end(weight), std::begin(points_.weight));
+
+
+    points_.p_x = points_.x.data();
+    points_.p_y = points_.y.data();
+    points_.p_layer = points_.layer.data();
+    points_.p_weight = points_.weight.data();
+
+    resizeOutputContainers();
+
+    return points_.n;
+  }
   int copyPoints(const std::vector<float>& x, const std::vector<float>& y,
                  const std::vector<int>& layer,
                  const std::vector<float>& weight,
@@ -101,6 +154,19 @@ class CLUEAlgo {
   }
 
   int setPoints(int n, const float* x, const float* y, const int* layer,
+                const float* weight) {
+    points_.clear();
+    points_.n = n;
+    points_.p_x = x;
+    points_.p_y = y;
+    points_.p_layer = layer;
+    points_.p_weight = weight;
+
+    resizeOutputContainers();
+
+    return n;
+  }
+  int setPoints(int n, const float* x, const float* y, const int* layer,
                 const float* weight, const float* sigmaNoise) {
     points_.clear();
     points_.n = n;
@@ -115,6 +181,30 @@ class CLUEAlgo {
     return n;
   }
 
+  int setPoints(std::vector<float>& x, std::vector<float>& y,
+                std::vector<int>& layer, std::vector<float>& weight) {
+    // std::cout << "STANDALONE: start setPosition" << std::endl;
+    points_.clear();
+    auto const n = x.size();
+    points_.n = n;
+    // input variables
+    points_.n = n;
+    points_.x.swap(x);
+    points_.y.swap(y);
+    points_.layer.swap(layer);
+    points_.weight.swap(weight);
+
+    points_.p_x = points_.x.data();
+    points_.p_y = points_.y.data();
+    points_.p_layer = points_.layer.data();
+    points_.p_weight = points_.weight.data();
+
+    resizeOutputContainers();
+
+    // std::cout << "STANDALONE: end setPosition" << std::endl;
+    return points_.n;
+
+  }
   int setPoints(std::vector<float>& x, std::vector<float>& y,
                 std::vector<int>& layer, std::vector<float>& weight, std::vector<float>& sigmaNoise) {
     // std::cout << "STANDALONE: start setPosition" << std::endl;
@@ -139,7 +229,7 @@ class CLUEAlgo {
 
     // std::cout << "STANDALONE: end setPosition" << std::endl;
     return points_.n;
-   
+
   }
 
   int getPoints(std::vector<float>& delta, std::vector<int>& nearestHigher,
