@@ -82,7 +82,7 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
   // Bring base-class public variables into the scope of this template derived
   // class
   using CLUEAlgo<T, NLAYERS>::dc_;
-  using CLUEAlgo<T, NLAYERS>::rhoc_;
+  using CLUEAlgo<T, NLAYERS>::kappa_;
   using CLUEAlgo<T, NLAYERS>::outlierDeltaFactor_;
   using CLUEAlgo<T, NLAYERS>::verbose_;
   using CLUEAlgo<T, NLAYERS>::points_;
@@ -93,13 +93,14 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
     std::optional<BufAccT<float>> y;
     std::optional<BufAccT<int>> layer;
     std::optional<BufAccT<float>> weight;
+    std::optional<BufAccT<float>> sigmaNoise;
 
     // Output Buffers
     std::optional<BufAccT<float>> rho;
     std::optional<BufAccT<float>> delta;
     std::optional<BufAccT<int>> nearestHigher;
     std::optional<BufAccT<int>> clusterIndex;
-    std::optional<BufAccT<int>> isSeed;
+    std::optional<BufAccT<uint8_t>> isSeed;
   };
 
   class DeviceRunner {
@@ -132,13 +133,13 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
                                 float outlierDeltaFactor, float dc,
                                 int num_elements);
     DECLARE_TASKTYPE_AND_KERNEL(TAcc, FindClusters, float outlierDeltaFactor,
-                                float dc, float rhoc, int num_elements);
+                                float dc, float kappa, int num_elements);
     DECLARE_TASKTYPE_AND_KERNEL(TAcc, AssignClusters);
     DeviceRawPointers ptrs_;
   };
 
-  CLUEAlgoAlpaka(float dc, float rhoc, float outlierDeltaFactor, bool verbose)
-      : CLUEAlgo<T, NLAYERS>(dc, rhoc, outlierDeltaFactor, verbose),
+  CLUEAlgoAlpaka(float dc, float kappa, float outlierDeltaFactor, bool verbose)
+      : CLUEAlgo<T, NLAYERS>(dc, kappa, outlierDeltaFactor, verbose),
         device_(alpaka::getDevByIdx<TAcc>(0u)),
         queue_(device_),
         host_(alpaka::getDevByIdx<alpaka::DevCpu>(0u)) {
@@ -440,7 +441,7 @@ auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
 template <typename TAcc, typename T, int NLAYERS>
 auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc, KernelFindClusters dummy, float outlierDeltaFactor,
-    float dc, float rhoc, int numberOfPoints) const -> void {
+    float dc, float kappa, int numberOfPoints) const -> void {
   const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
 
   if (i < numberOfPoints) {
@@ -449,6 +450,7 @@ auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
     // determine seed or outlier
     float deltai = ptrs_.delta[i];
     float rhoi = ptrs_.rho[i];
+    float rhoc = points_.sigmaNoise[i] * kappa;
     bool isSeed = (deltai > dc) && (rhoi >= rhoc);
     bool isOutlier = (deltai > outlierDeltaFactor * dc) && (rhoi < rhoc);
 
@@ -472,7 +474,7 @@ auto CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::operator()(
     CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelAssignClusters dummy)
     const -> void {
   const Idx idxCls(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
-
+  numberOfClusters_ = ptrs_.seeds_[0].size();
   if (idxCls < ptrs_.seeds_[0].size()) {
     int localStack[localStackSizePerSeed] = {-1};
     int localStackSize = 0;
@@ -555,7 +557,7 @@ void CLUEAlgoAlpaka<TAcc, T, NLAYERS>::makeClusters() {
       taskFindClusters;
   auto const kernelFindClusters = (alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskFindClusters, outlierDeltaFactor_, dc_,
-      rhoc_, static_cast<int>(points_.n)));
+      kappa_, static_cast<int>(points_.n)));
 
   typename CLUEAlgoAlpaka<TAcc, T, NLAYERS>::DeviceRunner::KernelAssignClusters
       taskAssignClusters;
