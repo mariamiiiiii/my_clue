@@ -39,6 +39,7 @@ struct PointsPtr {
   float *y;
   int *layer;
   float *weight;
+  float *sigmaNoise;
 
   float *rho;
   float *delta;
@@ -57,8 +58,8 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
 
  public:
   // constructor
-  CLUEAlgoGPU(float dc, float rhoc, float outlierDeltaFactor, bool verbose)
-      : CLUEAlgo<T, NLAYERS>(dc, rhoc, outlierDeltaFactor, verbose) {
+  CLUEAlgoGPU(float dc, float kappa, float outlierDeltaFactor, bool verbose)
+      : CLUEAlgo<T, NLAYERS>(dc, kappa, outlierDeltaFactor, verbose) {
     init_device();
   }
   // destructor
@@ -70,7 +71,7 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
   // Bring base-class public variables into the scope of this template derived
   // class
   using CLUEAlgo<T, NLAYERS>::dc_;
-  using CLUEAlgo<T, NLAYERS>::rhoc_;
+  using CLUEAlgo<T, NLAYERS>::kappa_;
   using CLUEAlgo<T, NLAYERS>::outlierDeltaFactor_;
   using CLUEAlgo<T, NLAYERS>::verbose_;
   using CLUEAlgo<T, NLAYERS>::points_;
@@ -100,6 +101,8 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
         cudaMallocAsync(&d_points.layer, sizeof(int) * reserve, stream_));
     CHECK_CUDA_ERROR(
         cudaMallocAsync(&d_points.weight, sizeof(float) * reserve, stream_));
+    CHECK_CUDA_ERROR(
+        cudaMallocAsync(&d_points.sigmaNoise, sizeof(float) * reserve, stream_));
     // result variables
     CHECK_CUDA_ERROR(
         cudaMallocAsync(&d_points.rho, sizeof(float) * reserve, stream_));
@@ -127,6 +130,7 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
     CHECK_CUDA_ERROR(cudaFreeAsync(d_points.y, stream_));
     CHECK_CUDA_ERROR(cudaFreeAsync(d_points.layer, stream_));
     CHECK_CUDA_ERROR(cudaFreeAsync(d_points.weight, stream_));
+    CHECK_CUDA_ERROR(cudaFreeAsync(d_points.sigmaNoise, stream_));
     // result variables
     CHECK_CUDA_ERROR(cudaFreeAsync(d_points.rho, stream_));
     CHECK_CUDA_ERROR(cudaFreeAsync(d_points.delta, stream_));
@@ -153,6 +157,9 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
                                      sizeof(int) * points_.n,
                                      cudaMemcpyHostToDevice, stream_));
     CHECK_CUDA_ERROR(cudaMemcpyAsync(d_points.weight, points_.p_weight,
+                                     sizeof(float) * points_.n,
+                                     cudaMemcpyHostToDevice, stream_));
+    CHECK_CUDA_ERROR(cudaMemcpyAsync(d_points.sigmaNoise, points_.sigmaNoise,
                                      sizeof(float) * points_.n,
                                      cudaMemcpyHostToDevice, stream_));
   }
@@ -429,7 +436,7 @@ __global__ void kernel_calculate_distanceToHigherTile(TilesGPU<T> *d_hist,
 __global__ void kernel_find_clusters(
     GPU::VecArray<int, maxNSeeds> *d_seeds,
     GPU::VecArray<int, maxNFollowers> *d_followers, PointsPtr d_points,
-    float outlierDeltaFactor, float dc, float rhoc, int numberOfPoints,
+    float outlierDeltaFactor, float dc, float kappa, int numberOfPoints,
     cudaStream_t) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -439,6 +446,7 @@ __global__ void kernel_find_clusters(
     // determine seed or outlier
     float deltai = d_points.delta[i];
     float rhoi = d_points.rho[i];
+    float rhoc = points_.sigmaNoise[i] * kappa;
     bool isSeed = (deltai > dc) && (rhoi >= rhoc);
     bool isOutlier = (deltai > outlierDeltaFactor * dc) && (rhoi < rhoc);
 
@@ -526,7 +534,7 @@ void CLUEAlgoGPU<T, NLAYERS, W>::makeClusters() {
   }
 
   kernel_find_clusters<<<gridSize, blockSize>>>(d_seeds, d_followers, d_points,
-                                                outlierDeltaFactor_, dc_, rhoc_,
+                                                outlierDeltaFactor_, dc_, kappa_,
                                                 points_.n, stream_);
 
   ////////////////////////////////////////////

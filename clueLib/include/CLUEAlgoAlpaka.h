@@ -111,6 +111,7 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
       float *y;
       int *layer;
       float *weight;
+      float *sigmaNoise;
 
       // Pointers to output buffers on device
       float *rho;
@@ -182,6 +183,8 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
         std::make_optional(alpaka::allocBuf<int, Idx>(device_, extents));
     device_bufs_.weight =
         std::make_optional(alpaka::allocBuf<float, Idx>(device_, extents));
+    device_bufs_.sigmaNoise =
+        std::make_optional(alpaka::allocBuf<float, Idx>(device_, extents));
 
     // RESULT VARIABLES
     device_bufs_.rho =
@@ -216,6 +219,8 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
         alpaka::getPtrNative(device_bufs_.layer.value());
     device_runner_.ptrs_.weight =
         alpaka::getPtrNative(device_bufs_.weight.value());
+    device_runner_.ptrs_.sigmaNoise =
+        alpaka::getPtrNative(device_bufs_.sigmaNoise.value());
 
     // RESULT VARIABLES
     device_runner_.ptrs_.rho = alpaka::getPtrNative(device_bufs_.rho.value());
@@ -273,6 +278,8 @@ class CLUEAlgoAlpaka : public CLUEAlgo<T, NLAYERS> {
                    getViewHost(points_.p_layer, points_.n), extentToTransfer);
     alpaka::memcpy(queue_, device_bufs_.weight.value(),
                    getViewHost(points_.p_weight, points_.n), extentToTransfer);
+    alpaka::memcpy(queue_, device_bufs_.sigmaNoise.value(),
+                   getViewHost(points_.p_sigmaNoise, points_.n), extentToTransfer);
     alpaka::wait(queue_);
   }
 
