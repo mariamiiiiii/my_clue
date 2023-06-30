@@ -27,7 +27,7 @@ class CLUEAlgo {
     numberOfClusters_ = 0;
   }
   CLUEAlgo(){}
-  ~CLUEAlgo() {}
+  virtual ~CLUEAlgo() {}
 
   // public variables
   float dc_, kappa_, outlierDeltaFactor_;

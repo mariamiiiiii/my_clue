@@ -19,7 +19,7 @@ struct int4 {
 template <typename Acc, typename T>
 class TilesAlpaka {
  public:
-  using GPUVect = GPUAlpaka::VecArray<int, T::maxTileDepth>;
+  using GPUVect = GPUAlpaka::VecArray<unsigned int, T::maxTileDepth>;
   // constructor
   TilesAlpaka(const Acc& acc) { acc_ = acc; };
 
