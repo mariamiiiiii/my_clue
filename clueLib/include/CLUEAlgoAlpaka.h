@@ -136,7 +136,8 @@ class DeviceRunner {
   DECLARE_TASKTYPE_AND_KERNEL(TAcc, FindClusters, float outlierDeltaFactor,
                               float dc, float kappa,
                               const unsigned int num_elements);
-  DECLARE_TASKTYPE_AND_KERNEL(TAcc, AssignClusters);
+  DECLARE_TASKTYPE_AND_KERNEL(TAcc, AssignClusters,
+                              unsigned int * numberOfClusters);
   DeviceRawPointers ptrs_;
 };
 
@@ -159,8 +160,18 @@ class DeviceRunner {
   ~CLUEAlgoAlpaka() { free_device(); }
 
   void makeClusters();
-  void makeClustersCMSSW(const unsigned int points, const float * x, const float * y, const int * layer, const float * weight, const float * sigmaNoise,
-   float * rho, float * delta, unsigned int * nearestHigher, int * clusterIndex,  uint8_t * isSeed);
+  void makeClustersCMSSW(const unsigned int points,
+      const float * x,
+      const float * y,
+      const int * layer,
+      const float * weight,
+      const float * sigmaNoise,
+      float * rho,
+      float * delta,
+      unsigned int * nearestHigher,
+      int * clusterIndex,
+      uint8_t * isSeed,
+      unsigned int & numberOfClusters);
 
   // Device runner to submit kernels
   DeviceRunner device_runner_;
@@ -490,9 +501,12 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
 template <typename TAcc, typename TQueue, typename T, int NLAYERS>
 ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc,
-    CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::KernelAssignClusters dummy)
+    CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::KernelAssignClusters dummy,
+    unsigned int * numberOfClusters)
     const -> void {
   const Idx idxCls(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
+  if (idxCls == 0)
+    *numberOfClusters = ptrs_.seeds_[0].size();
   if (idxCls < (unsigned int)ptrs_.seeds_[0].size()) {
     int localStack[localStackSizePerSeed] = {-1};
     int localStackSize = 0;
@@ -634,7 +648,8 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClusters() {
 template <typename TAcc, typename TQueue, typename T, int NLAYERS>
 void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned int points,
    const float* x, const float * y, const int * layer, const float * weight, const float * sigmaNoise,
-   float * rho, float * delta, unsigned int * nearestHigher, int * clusterIndex,  uint8_t * isSeed) {
+   float * rho, float * delta, unsigned int * nearestHigher, int * clusterIndex,  uint8_t * isSeed,
+   unsigned int & numberOfClusters) {
 
   std::cout << "makeClustersCMSSW received " << points << " RecHits" << std::endl;
 
@@ -716,7 +731,7 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned 
   typename CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::KernelAssignClusters
       taskAssignClusters;
   auto const kernelAssignClusters = (alpaka::createTaskKernel<TAcc>(
-      manualWorkDiv, device_runner_, taskAssignClusters));
+      manualWorkDiv, device_runner_, taskAssignClusters, &numberOfClusters));
 
   // Enqueue the kernel execution task
 
