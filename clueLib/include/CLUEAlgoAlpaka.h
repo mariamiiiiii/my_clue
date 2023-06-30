@@ -137,7 +137,7 @@ class DeviceRunner {
                               float dc, float kappa,
                               const unsigned int num_elements);
   DECLARE_TASKTYPE_AND_KERNEL(TAcc, AssignClusters,
-                              unsigned int * numberOfClusters);
+                              unsigned int * numberOfClustersScalar);
   DeviceRawPointers ptrs_;
 };
 
@@ -171,7 +171,7 @@ class DeviceRunner {
       unsigned int * nearestHigher,
       int * clusterIndex,
       uint8_t * isSeed,
-      unsigned int * numberOfClusters);
+      unsigned int * numberOfClustersScalar);
 
   // Device runner to submit kernels
   DeviceRunner device_runner_;
@@ -502,16 +502,17 @@ template <typename TAcc, typename TQueue, typename T, int NLAYERS>
 ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc,
     CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::KernelAssignClusters dummy,
-    unsigned int * numberOfClusters)
+    unsigned int * numberOfClustersScalar)
     const -> void {
   const Idx idxCls(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
-  if (idxCls == 0)
+  if (idxCls == 0) {
     printf("%u\n", ptrs_.seeds_[0].size());
+    *numberOfClustersScalar = ptrs_.seeds_[0].size();
+  }
   if (idxCls < (unsigned int)ptrs_.seeds_[0].size()) {
     int localStack[localStackSizePerSeed] = {-1};
     int localStackSize = 0;
 
-    numberOfClusters[idxCls] = ptrs_.seeds_[0].size();
     // assign cluster to seed[idxCls]
     int idxThisSeed = ptrs_.seeds_[0][idxCls];
     ptrs_.clusterIndex[idxThisSeed] = idxCls;
@@ -650,7 +651,7 @@ template <typename TAcc, typename TQueue, typename T, int NLAYERS>
 void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned int points,
    const float* x, const float * y, const int * layer, const float * weight, const float * sigmaNoise,
    float * rho, float * delta, unsigned int * nearestHigher, int * clusterIndex,  uint8_t * isSeed,
-   unsigned int * numberOfClusters) {
+   unsigned int * numberOfClustersScalar) {
 
   std::cout << "makeClustersCMSSW received " << points << " RecHits" << std::endl;
 
@@ -732,7 +733,7 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned 
   typename CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::KernelAssignClusters
       taskAssignClusters;
   auto const kernelAssignClusters = (alpaka::createTaskKernel<TAcc>(
-      manualWorkDiv, device_runner_, taskAssignClusters, numberOfClusters));
+      manualWorkDiv, device_runner_, taskAssignClusters, numberOfClustersScalar));
 
   // Enqueue the kernel execution task
 
