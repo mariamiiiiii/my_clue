@@ -45,7 +45,7 @@ class SelectedAcc;
 
 // Maximum number of uniques seeds that could be handled. A higher number of
 // potential seed will trigger an exception.
-static const int maxNSeeds = 8192;
+static const int maxNSeeds = 32768;
 
 // Maximum number of followers that could be handled. A higher number of
 // followers will trigger an exception.
