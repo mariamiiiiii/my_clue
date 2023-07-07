@@ -2,6 +2,7 @@
 #include <alpaka/alpaka.hpp>
 #include <chrono>
 #include <optional>
+#include <cfloat>
 
 #include "CLUEAlgo.h"
 #include "TilesAlpaka.h"
@@ -45,7 +46,7 @@ class SelectedAcc;
 
 // Maximum number of uniques seeds that could be handled. A higher number of
 // potential seed will trigger an exception.
-static const int maxNSeeds = 32768;
+static const int maxNSeeds = 131072;
 
 // Maximum number of followers that could be handled. A higher number of
 // followers will trigger an exception.
@@ -112,6 +113,7 @@ class DeviceRunner {
     int *layer;
     float *weight;
     float *sigmaNoise;
+    uint32_t *detid;
 
     // Pointers to output buffers on device
     float *rho;
@@ -166,6 +168,7 @@ class DeviceRunner {
       const int * layer,
       const float * weight,
       const float * sigmaNoise,
+      const uint32_t * detid,
       float * rho,
       float * delta,
       unsigned int * nearestHigher,
@@ -375,7 +378,7 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
     float dc, const unsigned int numberOfPoints) const -> void {
   const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
   if (i < numberOfPoints) {
-    double rhoi{0.};
+    float rhoi{0.};
     int layeri = ptrs_.layer[i];
     float xi = ptrs_.x[i];
     float yi = ptrs_.y[i];
@@ -399,8 +402,8 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
           float xj = ptrs_.x[j];
           float yj = ptrs_.y[j];
           float dist_ij =
-              std::sqrt((xi - xj) * (xi - xj) + (yi - yj) * (yi - yj));
-          if (dist_ij <= dc) {
+              ((xi - xj) * (xi - xj) + (yi - yj) * (yi - yj));
+          if (dist_ij < dc*dc) {
             // sum weights within N_{dc_}(i)
             rhoi += (i == j ? 1.f : 0.5f) * ptrs_.weight[j];
           }
@@ -428,6 +431,8 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
     float xi = ptrs_.x[i];
     float yi = ptrs_.y[i];
     float rhoi = ptrs_.rho[i];
+    float rho_max = 0.f;
+    bool print = (ptrs_.detid[i] == 2149108264);
 
     // get search box
     int4 search_box =
@@ -448,10 +453,15 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
           float xj = ptrs_.x[j];
           float yj = ptrs_.y[j];
           float dist_ij =
-              std::sqrt((xi - xj) * (xi - xj) + (yi - yj) * (yi - yj));
+              // std::sqrt((xi - xj) * (xi - xj) + (yi - yj) * (yi - yj));
+              ((xi - xj) * (xi - xj) + (yi - yj) * (yi - yj));
           bool foundHigher = (ptrs_.rho[j] > rhoi);
           // in the rare case where rho is the same, use detid
-          foundHigher = foundHigher || ((ptrs_.rho[j] == rhoi) && (j > i));
+          foundHigher = foundHigher || ((ptrs_.rho[j] == rhoi) && (ptrs_.detid[j] > ptrs_.detid[i]));
+          if (print) {
+            printf("XXX Processing %d distance %a\n", ptrs_.detid[j], dist_ij);
+          }
+          /*
           if (foundHigher && dist_ij <= dm) {  // definition of N'_{dm}(i)
             // find the nearest point within N'_{dm}(i)
             if (dist_ij < deltai) {
@@ -460,10 +470,36 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
               nearestHigheri = j;
             }
           }
+          */
+          // FIX MR
+          if (foundHigher && dist_ij < deltai) {
+            if (print) {
+              printf("XXX using new nearest %d, with rho %a and distance %a old dist %a\n", j, ptrs_.rho[j], dist_ij, deltai);
+              printf("XXX x1 %a y1 %a x2 %a y2 %a\n", xi, yi, xj, yj);
+            }
+              rho_max = ptrs_.rho[j];
+              deltai = dist_ij;
+              nearestHigheri = j;
+          } else if (foundHigher && dist_ij == deltai && ptrs_.rho[j] > rho_max) {
+            if (print) {
+              printf("XXy using new nearest %d, with rho %a and distance %a old dist %a\n", j, ptrs_.rho[j], dist_ij, deltai);
+            }
+              rho_max = ptrs_.rho[j];
+              deltai = dist_ij;
+              nearestHigheri = j;
+          } else if (foundHigher && dist_ij == deltai && ptrs_.rho[j] == rho_max && ptrs_.detid[j] > ptrs_.detid[i]) {
+            if (print) {
+              printf("XXz using new nearest %d, with rho %a and distance %a old dist %a\n", j, ptrs_.rho[j], dist_ij, deltai);
+            }
+              rho_max = ptrs_.rho[j];
+              deltai = dist_ij;
+              nearestHigheri = j;
+          }
+
         }  // end of interate inside this bin
       }
     }  // end of loop over bins in search box
-    ptrs_.delta[i] = deltai;
+    ptrs_.delta[i] = std::sqrt(deltai);
     ptrs_.nearestHigher[i] = nearestHigheri;
   }
 }
@@ -650,7 +686,7 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClusters() {
 template <typename TAcc, typename TQueue, typename T, int NLAYERS>
 void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned int points,
    const float* x, const float * y, const int * layer, const float * weight, const float * sigmaNoise,
-   float * rho, float * delta, unsigned int * nearestHigher, int * clusterIndex,  uint8_t * isSeed,
+   const uint32_t * detid, float * rho, float * delta, unsigned int * nearestHigher, int * clusterIndex,  uint8_t * isSeed,
    unsigned int * numberOfClustersScalar) {
 
   std::cout << "makeClustersCMSSW received " << points << " RecHits" << std::endl;
@@ -675,12 +711,14 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned 
   // INTERNAL VARIABLES RESETTING
   alpaka::memset(queue_, device_hist_.value(), 0x0, layerTilesExtents);
 
+
   // Set Device Raw Pointers using values from outsice and also internal buffers
   device_runner_.ptrs_.x = const_cast<float *>(x);
   device_runner_.ptrs_.y = const_cast<float *>(y);
   device_runner_.ptrs_.layer = const_cast<int *>(layer);
   device_runner_.ptrs_.weight = const_cast<float *>(weight);
   device_runner_.ptrs_.sigmaNoise = const_cast<float *>(sigmaNoise);
+  device_runner_.ptrs_.detid = const_cast<uint32_t *>(detid);
 
   // RESULT VARIABLES
   device_runner_.ptrs_.rho = rho;
@@ -689,13 +727,22 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned 
   device_runner_.ptrs_.clusterIndex = clusterIndex;
   device_runner_.ptrs_.isSeed = isSeed;
 
+  /*
+  // Output Variable resetting
+  alpaka::memset(queue_, device_runner_.ptrs_.rho, 0x0, points);
+  alpaka::memset(queue_, device_runner_.ptrs_.delta, 0x0, points);
+  alpaka::memset(queue_, device_runner_.ptrs_.nearestHigher, 0x0, points);
+  alpaka::memset(queue_, device_runner_.ptrs_.clusterIndex, 0x0, points);
+  alpaka::memset(queue_, device_runner_.ptrs_.isSeed, 0x0, points);
+  */
+
   // UPDATE RAW POINTERS FOR INTERNATL DATA STRUCTURES
   device_runner_.ptrs_.hist_ = alpaka::getPtrNative(device_hist_.value());
   device_runner_.ptrs_.seeds_ = alpaka::getPtrNative(device_seeds_.value());
   device_runner_.ptrs_.followers_ = alpaka::getPtrNative(device_followers_.value());
 
   // Dimension the grid for submission
-  alpaka::Vec<Dim, Idx> const threadsPerBlock(1024u);
+  alpaka::Vec<Dim, Idx> const threadsPerBlock(256u);
   alpaka::Vec<Dim, Idx> const blocksPerGrid(
       static_cast<Idx>(ceil(points / (float)threadsPerBlock[0])));
   alpaka::Vec<Dim, Idx> const elementsPerThread(1u);
