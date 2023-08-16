@@ -34,6 +34,11 @@ class TilesAlpaka {
   ALPAKA_FN_ACC
   void fill(float x, float y, int i) {
     tiles_[getGlobalBin(x, y)].push_back(acc_, i);
+#if 0
+    if (i == 9343) {
+      printf("ZZZx %d in globalBin %d\n", i, getGlobalBin(x,y));
+    }
+#endif
   }
 
   ALPAKA_FN_HOST_ACC int getDim1Bin(float x) const {

@@ -432,7 +432,7 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
     float yi = ptrs_.y[i];
     float rhoi = ptrs_.rho[i];
     float rho_max = 0.f;
-    bool print = (ptrs_.detid[i] == 2149108264);
+    bool print = false; //(ptrs_.detid[i] == 2149108264);
 
     // get search box
     int4 search_box =
@@ -542,7 +542,7 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
     const -> void {
   const Idx idxCls(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
   if (idxCls == 0) {
-    printf("%u\n", ptrs_.seeds_[0].size());
+    //printf("%u\n", ptrs_.seeds_[0].size());
     *numberOfClustersScalar = ptrs_.seeds_[0].size();
   }
   if (idxCls < (unsigned int)ptrs_.seeds_[0].size()) {
@@ -689,7 +689,7 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned 
    const uint32_t * detid, float * rho, float * delta, unsigned int * nearestHigher, int * clusterIndex,  uint8_t * isSeed,
    unsigned int * numberOfClustersScalar) {
 
-  std::cout << "makeClustersCMSSW received " << points << " RecHits" << std::endl;
+  //std::cout << "makeClustersCMSSW received " << points << " RecHits" << std::endl;
 
   // INTERNAL TILES VARIABLES
   Idx const reserve = 1000000;
@@ -710,6 +710,8 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned 
         device_, extents));
   // INTERNAL VARIABLES RESETTING
   alpaka::memset(queue_, device_hist_.value(), 0x0, layerTilesExtents);
+  alpaka::memset(queue_, device_seeds_.value(), 0x0 , seedsExtents);
+  alpaka::memset(queue_, device_followers_.value(), 0x0, extents);
 
 
   // Set Device Raw Pointers using values from outsice and also internal buffers
@@ -749,7 +751,7 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned 
   using WorkDiv = alpaka::WorkDivMembers<Dim, Idx>;
   auto const manualWorkDiv =
       WorkDiv{blocksPerGrid, threadsPerBlock, elementsPerThread};
-  std::cout << manualWorkDiv << std::endl;
+  //std::cout << manualWorkDiv << std::endl;
   // Create the kernel execution tasks.
   typename CLUEAlgoAlpaka<TAcc, TQueue, T,
                           NLAYERS>::DeviceRunner::KernelComputeHistogram
