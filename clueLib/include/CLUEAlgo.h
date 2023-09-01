@@ -13,25 +13,37 @@
 #include "Tiles.h"
 
 // The type T is used to pass the number of bins in each dimension and the
-// allowed ranges spanned. Anchillary quantitied, like the inverse of the bin
+// allowed ranges spanned. Ancillary quantities, like the inverse of the bin
 // width should also be provided. Code will not compile if any such information
 // is missing.
 template <typename T, int NLAYERS>
 class CLUEAlgo {
  public:
-  CLUEAlgo(float dc, float kappa, float outlierDeltaFactor, bool verbose) {
+  CLUEAlgo(float dc, float rhoc, float outlierDeltaFactor,
+           bool verbose=false, bool useAbsoluteSigma=false) {
     dc_ = dc;
-    kappa_ = kappa;
+    rhoc_ = rhoc;
+    // If the user does not want to use an absolute energy cut to create the
+    // clusters, the input parameter rhoc is assumed to be the value, in terms
+    // of sigma__over_noise units, of the cuts to be applied to identify seeds,
+    // outliers and followers. It is the user's responsibility to supply as
+    // well, in this case, a vector of sigma_over_noise values, one for each
+    // rechit, that will be used to compute the final cut. Setting the value of
+    // useAbsoluteSigma to true w/o supplying the corresponding vector will
+    // trigger an assert while computing the clusters.
+    kappa_ = rhoc;
     outlierDeltaFactor_ = outlierDeltaFactor;
     verbose_ = verbose;
+    useAbsoluteSigma_ = useAbsoluteSigma;
     numberOfClusters_ = 0;
   }
   CLUEAlgo(){}
   virtual ~CLUEAlgo() {}
 
   // public variables
-  float dc_, kappa_, outlierDeltaFactor_;
+  float dc_, rhoc_, kappa_, outlierDeltaFactor_;
   bool verbose_;
+  bool useAbsoluteSigma_;
 
   int numberOfClusters_;
   int getNumberOfClusters(){return numberOfClusters_;}
@@ -39,6 +51,7 @@ class CLUEAlgo {
   Points points_;
 
   int copyPoints(int n, float* x, float* y, int* layer, float* weight) {
+    assert(!useAbsoluteSigma_);
     points_.clear();
     // Reserve, first
     points_.n = n;
@@ -62,6 +75,7 @@ class CLUEAlgo {
     return points_.n;
   }
   int copyPoints(int n, float* x, float* y, int* layer, float* weight, float* sigmaNoise) {
+    assert(useAbsoluteSigma_);
     points_.clear();
     // Reserve, first
     points_.n = n;
@@ -92,6 +106,7 @@ class CLUEAlgo {
                  const std::vector<int>& layer,
                  const std::vector<float>& weight
                  ) {
+    assert(!useAbsoluteSigma_);
     points_.clear();
     auto const n = x.size();
     points_.n = n;
@@ -123,6 +138,7 @@ class CLUEAlgo {
                  const std::vector<float>& weight,
                  const std::vector<float>& sigmaNoise
                  ) {
+    assert(useAbsoluteSigma_);
     points_.clear();
     auto const n = x.size();
     points_.n = n;
@@ -155,6 +171,7 @@ class CLUEAlgo {
 
   int setPoints(int n, const float* x, const float* y, const int* layer,
                 const float* weight) {
+    assert(!useAbsoluteSigma_);
     points_.clear();
     points_.n = n;
     points_.p_x = x;
@@ -168,6 +185,7 @@ class CLUEAlgo {
   }
   int setPoints(int n, const float* x, const float* y, const int* layer,
                 const float* weight, const float* sigmaNoise) {
+    assert(useAbsoluteSigma_);
     points_.clear();
     points_.n = n;
     points_.p_x = x;
@@ -184,6 +202,7 @@ class CLUEAlgo {
   int setPoints(std::vector<float>& x, std::vector<float>& y,
                 std::vector<int>& layer, std::vector<float>& weight) {
     // std::cout << "STANDALONE: start setPosition" << std::endl;
+    assert(!useAbsoluteSigma_);
     points_.clear();
     auto const n = x.size();
     points_.n = n;
@@ -208,6 +227,7 @@ class CLUEAlgo {
   int setPoints(std::vector<float>& x, std::vector<float>& y,
                 std::vector<int>& layer, std::vector<float>& weight, std::vector<float>& sigmaNoise) {
     // std::cout << "STANDALONE: start setPosition" << std::endl;
+    assert(useAbsoluteSigma_);
     points_.clear();
     auto const n = x.size();
     points_.n = n;
@@ -232,8 +252,9 @@ class CLUEAlgo {
 
   }
 
-  int getPoints(std::vector<float>& delta, std::vector<int>& nearestHigher,
-                std::vector<int>& clusterIndex, std::vector<float>& rho, std::vector<uint8_t>& isSeed, std::vector<int>& layer, std::vector<float>& weight) {
+  int getPoints(std::vector<float>& delta, std::vector<unsigned int>& nearestHigher,
+                std::vector<int>& clusterIndex, std::vector<float>& rho,
+                std::vector<uint8_t>& isSeed, std::vector<int>& layer, std::vector<float>& weight) {
 
     delta.swap(points_.delta);
     nearestHigher.swap(points_.nearestHigher);
@@ -270,7 +291,7 @@ void CLUEAlgo<T, NLAYERS>::resizeOutputContainers() {
   // result variables
   points_.rho.resize(points_.n, 0);
   points_.delta.resize(points_.n, std::numeric_limits<float>::max());
-  points_.nearestHigher.resize(points_.n, -1);
+  points_.nearestHigher.resize(points_.n, std::numeric_limits<unsigned int>::max());
   points_.followers.resize(points_.n);
   points_.clusterIndex.resize(points_.n, -1);
   points_.isSeed.resize(points_.n, 0);
@@ -397,7 +418,7 @@ void CLUEAlgo<T, NLAYERS>::calculateDistanceToHigher(
   for (int i = 0; i < points_.n; i++) {
     // default values of delta and nearest higher for i
     float delta_i = std::numeric_limits<float>::max();
-    int nearestHigher_i = -1;
+    unsigned int nearestHigher_i = std::numeric_limits<unsigned int>::max();
     float xi = points_.p_x[i];
     float yi = points_.p_y[i];
     float rho_i = points_.rho[i];
@@ -449,7 +470,6 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters() {
   // find cluster seeds and outlier
   std::vector<int> localStack;
   // loop over all points
-  std::cout << "Number of points: " << points_.n << std::endl;
   for (int i = 0; i < points_.n; i++) {
     // initialize clusterIndex
     points_.clusterIndex[i] = -1;
@@ -458,7 +478,9 @@ void CLUEAlgo<T, NLAYERS>::findAndAssignClusters() {
     float rhoi = points_.rho[i];
 
     // determine seed or outlier
-    float rhoc = points_.sigmaNoise[i] * kappa_;
+    float rhoc = rhoc_;
+    if (useAbsoluteSigma_)
+      rhoc = points_.sigmaNoise[i] * kappa_;
     bool isSeed = (deltai > dc_) and (rhoi >= rhoc);
     bool isOutlier = (deltai > outlierDeltaFactor_ * dc_) and (rhoi < rhoc);
     if (isSeed) {

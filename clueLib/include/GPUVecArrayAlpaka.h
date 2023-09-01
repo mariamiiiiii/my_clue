@@ -33,8 +33,10 @@ struct VecArray {
   inline constexpr T &back() const {
     if (m_size > 0) {
       return m_data[m_size - 1];
-    } else
+    } else {
+      assert(0);
       return T();  // undefined behaviour
+    }
   }
 
   // thread-safe version of the vector, when used in a CUDA kernel
@@ -45,7 +47,6 @@ struct VecArray {
       m_data[previousSize] = element;
       return previousSize;
     } else {
-      printf("%d, %d", previousSize, maxSize);
       assert(0);
       atomicSub(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
       //assert(("Too few elemets reserved", maxSize));
@@ -60,6 +61,7 @@ struct VecArray {
       (new (&m_data[previousSize]) T(std::forward<Ts>(args)...));
       return previousSize;
     } else {
+      assert(0);
       atomicSub(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
       return -1;
     }
@@ -70,8 +72,10 @@ struct VecArray {
     if (m_size > 0) {
       auto previousSize = m_size--;
       return m_data[previousSize - 1];
-    } else
+    } else {
+      assert(0);
       return T();
+    }
   }
 
   template <typename T_Acc>

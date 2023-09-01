@@ -19,7 +19,7 @@ struct Points {
 
   std::vector<float> rho;
   std::vector<float> delta;
-  std::vector<int> nearestHigher;
+  std::vector<unsigned int> nearestHigher;
   std::vector<int> clusterIndex;
   std::vector<std::vector<int>> followers;
   std::vector<uint8_t> isSeed;

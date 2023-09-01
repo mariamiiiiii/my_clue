@@ -44,6 +44,7 @@ struct VecArray {
       m_data[previousSize] = element;
       return previousSize;
     } else {
+      assert(0);
       atomicSub(&m_size, 1);
       return -1;
     }
