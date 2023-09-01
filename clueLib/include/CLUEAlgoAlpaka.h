@@ -388,15 +388,6 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
     int bin = i - layer*T::nTiles;
     ptrs_.hist_[layer].sort_unsafe(bin);
   }
-#if 0
-  if (layer == 47) {
-    for (int gb = 0; gb < T::nTiles; ++gb) {
-      for (int tb = 0; tb < ptrs_.hist_[layer][gb].size(); ++tb) {
-        printf("gb: %d, tb: %d, idx: %d\n", gb, tb, ptrs_.hist_[layer][gb][tb]);
-      }
-    }
-  }
-#endif
 }
 
 template <typename TAcc, typename TQueue, typename T, int NLAYERS>
@@ -442,6 +433,7 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
     ptrs_.rho[i] = rhoi;
   }
 }
+
 
 template <typename TAcc, typename TQueue, typename T, int NLAYERS>
 ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::operator()(
@@ -513,6 +505,7 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
     ptrs_.nearestHigher[i] = nearestHigheri;
   }
 }
+
 
 template <typename TAcc, typename TQueue, typename T, int NLAYERS>
 ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::operator()(
