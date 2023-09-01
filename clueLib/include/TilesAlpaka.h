@@ -74,6 +74,11 @@ class TilesAlpaka {
     for (auto& t : tiles_) t.reset();
   }
 
+  ALPAKA_FN_HOST_ACC void sort_unsafe(int i) {
+    //for (int i = 0; i < T::nTiles; ++i)
+      tiles_[i].sort_unsafe(acc_);
+  }
+
   ALPAKA_FN_HOST_ACC GPUVect& operator[](int globalBinId) {
     return tiles_[globalBinId];
   }

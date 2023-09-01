@@ -7,6 +7,8 @@
 #include "CLUEAlgo.h"
 #include "TilesAlpaka.h"
 
+#define ORDER_TILE 1
+
 #define DECLARE_TASKTYPE_AND_KERNEL(ACC, NAME, ...)         \
   struct Kernel##NAME {};                                   \
   ALPAKA_FN_ACC void operator()( \
@@ -130,6 +132,7 @@ class DeviceRunner {
 
   // Kernel and KernelTask definitions
   DECLARE_TASKTYPE_AND_KERNEL(TAcc, ComputeHistogram, const unsigned int num_elements);
+  DECLARE_TASKTYPE_AND_KERNEL(TAcc, SortHistogram);
   DECLARE_TASKTYPE_AND_KERNEL(TAcc, ComputeLocalDensity, float dc,
                               const unsigned int num_elements);
   DECLARE_TASKTYPE_AND_KERNEL(TAcc, ComputeDistanceToHigher,
@@ -373,6 +376,32 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
 template <typename TAcc, typename TQueue, typename T, int NLAYERS>
 ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::operator()(
     TAcc const &acc,
+    CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::KernelSortHistogram
+        dummy) const -> void {
+  /*
+  const Idx layer(alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]);
+  ptrs_.hist_[layer].sort_unsafe();
+  */
+  const Idx i(alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u]);
+  if (i < NLAYERS*T::nTiles) {
+    int layer = i/T::nTiles;
+    int bin = i - layer*T::nTiles;
+    ptrs_.hist_[layer].sort_unsafe(bin);
+  }
+#if 0
+  if (layer == 47) {
+    for (int gb = 0; gb < T::nTiles; ++gb) {
+      for (int tb = 0; tb < ptrs_.hist_[layer][gb].size(); ++tb) {
+        printf("gb: %d, tb: %d, idx: %d\n", gb, tb, ptrs_.hist_[layer][gb][tb]);
+      }
+    }
+  }
+#endif
+}
+
+template <typename TAcc, typename TQueue, typename T, int NLAYERS>
+ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::operator()(
+    TAcc const &acc,
     CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::KernelComputeLocalDensity
         dummy,
     float dc, const unsigned int numberOfPoints) const -> void {
@@ -427,12 +456,11 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
     int layeri = ptrs_.layer[i];
 
     float deltai = std::numeric_limits<float>::max();
-    int nearestHigheri = -1;
+    unsigned int nearestHigheri = std::numeric_limits<unsigned int>::max();
     float xi = ptrs_.x[i];
     float yi = ptrs_.y[i];
     float rhoi = ptrs_.rho[i];
     float rho_max = 0.f;
-    bool print = false; //(ptrs_.detid[i] == 2149108264);
 
     // get search box
     int4 search_box =
@@ -446,9 +474,16 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
         // get the size of this bin
         int binSize = ptrs_.hist_[layeri][binId].size();
 
-        // interate inside this bin
+        // iterate inside this bin
+#if ORDER_TILE
+        unsigned int old_j = 0;
+#endif
         for (int binIter = 0; binIter < binSize; binIter++) {
           unsigned int j = ptrs_.hist_[layeri][binId][binIter];
+#if ORDER_TILE
+          assert (j >= old_j);
+          old_j = j;
+#endif
           // query N'_{dm}(i)
           float xj = ptrs_.x[j];
           float yj = ptrs_.y[j];
@@ -458,44 +493,19 @@ ALPAKA_FN_ACC auto CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::DeviceRunner::opera
           bool foundHigher = (ptrs_.rho[j] > rhoi);
           // in the rare case where rho is the same, use detid
           foundHigher = foundHigher || ((ptrs_.rho[j] == rhoi) && (ptrs_.detid[j] > ptrs_.detid[i]));
-          if (print) {
-            printf("XXX Processing %d distance %a\n", ptrs_.detid[j], dist_ij);
-          }
-          /*
-          if (foundHigher && dist_ij <= dm) {  // definition of N'_{dm}(i)
-            // find the nearest point within N'_{dm}(i)
-            if (dist_ij < deltai) {
-              // update deltai and nearestHigheri
-              deltai = dist_ij;
-              nearestHigheri = j;
-            }
-          }
-          */
-          // FIX MR
           if (foundHigher && dist_ij < deltai) {
-            if (print) {
-              printf("XXX using new nearest %d, with rho %a and distance %a old dist %a\n", j, ptrs_.rho[j], dist_ij, deltai);
-              printf("XXX x1 %a y1 %a x2 %a y2 %a\n", xi, yi, xj, yj);
-            }
-              rho_max = ptrs_.rho[j];
-              deltai = dist_ij;
-              nearestHigheri = j;
+            rho_max = ptrs_.rho[j];
+            deltai = dist_ij;
+            nearestHigheri = j;
           } else if (foundHigher && dist_ij == deltai && ptrs_.rho[j] > rho_max) {
-            if (print) {
-              printf("XXy using new nearest %d, with rho %a and distance %a old dist %a\n", j, ptrs_.rho[j], dist_ij, deltai);
-            }
-              rho_max = ptrs_.rho[j];
-              deltai = dist_ij;
-              nearestHigheri = j;
+            rho_max = ptrs_.rho[j];
+            deltai = dist_ij;
+            nearestHigheri = j;
           } else if (foundHigher && dist_ij == deltai && ptrs_.rho[j] == rho_max && ptrs_.detid[j] > ptrs_.detid[i]) {
-            if (print) {
-              printf("XXz using new nearest %d, with rho %a and distance %a old dist %a\n", j, ptrs_.rho[j], dist_ij, deltai);
-            }
-              rho_max = ptrs_.rho[j];
-              deltai = dist_ij;
-              nearestHigheri = j;
+            rho_max = ptrs_.rho[j];
+            deltai = dist_ij;
+            nearestHigheri = j;
           }
-
         }  // end of interate inside this bin
       }
     }  // end of loop over bins in search box
@@ -594,7 +604,6 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClusters() {
   using WorkDiv = alpaka::WorkDivMembers<Dim, Idx>;
   auto const manualWorkDiv =
       WorkDiv{blocksPerGrid, threadsPerBlock, elementsPerThread};
-  std::cout << manualWorkDiv << std::endl;
 
   // Create the kernel execution tasks.
   typename CLUEAlgoAlpaka<TAcc, TQueue, T,
@@ -729,35 +738,45 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned 
   device_runner_.ptrs_.clusterIndex = clusterIndex;
   device_runner_.ptrs_.isSeed = isSeed;
 
-  /*
-  // Output Variable resetting
-  alpaka::memset(queue_, device_runner_.ptrs_.rho, 0x0, points);
-  alpaka::memset(queue_, device_runner_.ptrs_.delta, 0x0, points);
-  alpaka::memset(queue_, device_runner_.ptrs_.nearestHigher, 0x0, points);
-  alpaka::memset(queue_, device_runner_.ptrs_.clusterIndex, 0x0, points);
-  alpaka::memset(queue_, device_runner_.ptrs_.isSeed, 0x0, points);
-  */
-
   // UPDATE RAW POINTERS FOR INTERNATL DATA STRUCTURES
   device_runner_.ptrs_.hist_ = alpaka::getPtrNative(device_hist_.value());
   device_runner_.ptrs_.seeds_ = alpaka::getPtrNative(device_seeds_.value());
   device_runner_.ptrs_.followers_ = alpaka::getPtrNative(device_followers_.value());
 
   // Dimension the grid for submission
-  alpaka::Vec<Dim, Idx> const threadsPerBlock(256u);
+  Idx threads_per_block = 256u;
+  if constexpr (std::is_same_v<alpaka::Dev<TAcc>, alpaka::DevCpu>) {
+    threads_per_block = 1u;
+  }
+  alpaka::Vec<Dim, Idx> const threadsPerBlock(threads_per_block);
+
   alpaka::Vec<Dim, Idx> const blocksPerGrid(
       static_cast<Idx>(ceil(points / (float)threadsPerBlock[0])));
   alpaka::Vec<Dim, Idx> const elementsPerThread(1u);
   using WorkDiv = alpaka::WorkDivMembers<Dim, Idx>;
   auto const manualWorkDiv =
       WorkDiv{blocksPerGrid, threadsPerBlock, elementsPerThread};
-  //std::cout << manualWorkDiv << std::endl;
+
   // Create the kernel execution tasks.
   typename CLUEAlgoAlpaka<TAcc, TQueue, T,
                           NLAYERS>::DeviceRunner::KernelComputeHistogram
       taskComputeHistogram;
   auto const kernelComputeHistogram = alpaka::createTaskKernel<TAcc>(
       manualWorkDiv, device_runner_, taskComputeHistogram, points);
+
+#if ORDER_TILE
+  //printf("Sorting tile for all layers.\n");
+  alpaka::Vec<Dim, Idx> const threadsPerBlockTile(512u);
+  alpaka::Vec<Dim, Idx> const blocksPerGridTile(std::ceil((NLAYERS*T::nTiles)/(float)threadsPerBlockTile[0]));
+  auto const manualWorkDivTile =
+      WorkDiv{blocksPerGridTile, threadsPerBlockTile, elementsPerThread};
+
+  typename CLUEAlgoAlpaka<TAcc, TQueue, T,
+                          NLAYERS>::DeviceRunner::KernelSortHistogram
+      taskSortHistogram;
+  auto const kernelSortHistogram = alpaka::createTaskKernel<TAcc>(
+      manualWorkDivTile, device_runner_, taskSortHistogram);
+#endif
 
   typename CLUEAlgoAlpaka<TAcc, TQueue, T,
                           NLAYERS>::DeviceRunner::KernelComputeLocalDensity
@@ -787,6 +806,9 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned 
   // Enqueue the kernel execution task
 
   alpaka::enqueue(queue_, kernelComputeHistogram);
+#if ORDER_TILE
+  alpaka::enqueue(queue_, kernelSortHistogram);
+#endif
   alpaka::enqueue(queue_, kernelComputeLocalDensity);
   alpaka::enqueue(queue_, kernelComputeDistanceToHigher);
   alpaka::enqueue(queue_, kernelFindClusters);
