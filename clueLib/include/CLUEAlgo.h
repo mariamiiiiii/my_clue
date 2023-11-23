@@ -274,7 +274,7 @@ class CLUEAlgo {
   void infoHits();
 
   void verboseResults(const std::string& outputFileName = "cout",
-                      const unsigned nVerbose = -1) const;
+                      const int nVerbose = -1) const;
 
  private:
   // private member methods
@@ -300,10 +300,10 @@ void CLUEAlgo<T, NLAYERS>::resizeOutputContainers() {
 template <typename T, int NLAYERS>
 void CLUEAlgo<T, NLAYERS>::verboseResults(
     const std::string& outputFileName /* "cout" */,
-    const unsigned nVerbose /* -1 */) const {
+    const int nVerbose /* -1 */) const {
   if (!verbose_) return;
 
-  unsigned int to_print = (nVerbose == -1 ? points_.n : nVerbose);
+  int to_print = (nVerbose == -1 ? points_.n : nVerbose);
 
   std::string header(
       "index, x, y, layer, weight, rho, delta, nh, isSeed, clusterId\n");
