@@ -156,9 +156,9 @@ class DeviceRunner {
 };
 
   CLUEAlgoAlpaka(TQueue queue,
-      float dc, float kappa, float outlierDeltaFactor, bool verbose, bool useAbsoluteSigma=false)
-      : CLUEAlgo<T, NLAYERS>(dc, kappa, outlierDeltaFactor, verbose, useAbsoluteSigma),
-        device_(alpaka::getDevByIdx<TAcc>(0u)),
+      float dc, float kappa, float outlierDeltaFactor, bool verbose)
+      : CLUEAlgo<T, NLAYERS>(dc, kappa, outlierDeltaFactor, verbose),
+        device_(alpaka::getDev(queue)),
         queue_(queue),
         host_(alpaka::getDevByIdx<alpaka::DevCpu>(0u)) {
   }
