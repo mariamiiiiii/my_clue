@@ -7,7 +7,7 @@
 #include "CLUEAlgo.h"
 #include "TilesAlpaka.h"
 
-#define ORDER_TILE 1
+#define ORDER_TILE 0
 
 #define DECLARE_TASKTYPE_AND_KERNEL(ACC, NAME, ...)         \
   struct Kernel##NAME {};                                   \
@@ -824,14 +824,14 @@ void CLUEAlgoAlpaka<TAcc, TQueue, T, NLAYERS>::makeClustersCMSSW(const unsigned 
 
   alpaka::Vec<Dim, Idx> const layerTilesExtents(static_cast<Idx>(NLAYERS));
   device_hist_ = std::make_optional(
-      alpaka::allocBuf<LayerTilesAcc, Idx>(device_, layerTilesExtents));
+      alpaka::allocAsyncBuf<LayerTilesAcc, Idx>(queue_, layerTilesExtents));
   alpaka::Vec<Dim, Idx> const seedsExtents(1u);
   device_seeds_ = std::make_optional(
-      alpaka::allocBuf<GPUAlpaka::VecArray<int, maxNSeeds>, Idx>(
-        device_, seedsExtents));
+      alpaka::allocAsyncBuf<GPUAlpaka::VecArray<int, maxNSeeds>, Idx>(
+        queue_, seedsExtents));
   device_followers_ = std::make_optional(
-      alpaka::allocBuf<GPUAlpaka::VecArray<int, maxNFollowers>, Idx>(
-        device_, extents));
+      alpaka::allocAsyncBuf<GPUAlpaka::VecArray<int, maxNFollowers>, Idx>(
+        queue_, extents));
   // INTERNAL VARIABLES RESETTING
   alpaka::memset(queue_, device_hist_.value(), 0x0, layerTilesExtents);
   alpaka::memset(queue_, device_seeds_.value(), 0x0 , seedsExtents);
