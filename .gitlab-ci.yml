@@ -4,12 +4,14 @@ sample-cpu:
     - .build
     - .test
 
-# sample-gpu-nvidia-t4:
-#   image: rochaporto/gpu_burn
-#   tags:
-#     - docker-gpu-t4
-#   extends:
-#     - .test
+
+sample-gpu-nvidia-t4:
+  image: gitlab-registry.cern.ch/ci-tools/ci-worker:cc7
+  tags:
+    - k8s-gpu
+  extends:
+    - .build
+    - .testGPU
 
 .build:
   stage: build
@@ -41,4 +43,21 @@ sample-cpu:
     - cmake ../ -DCHECK_CUDA_VERSION=OFF
     - cmake --build .
     - ctest -R '.*CPU$'
+
+.testGPU:
+  stage: test
+  tags:
+    # Want cvmfs mounted for TBB
+    - cvmfs
+  variables:
+    # Locally download ALPAKA as submodule
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    # We need to have all the needed software available. Use central sft.cern.ch/LCG.
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
+    - mkdir build && cd build
+    - cmake ../ -DCHECK_CUDA_VERSION=OFF
+    - cmake --build .
+    - ctest -R '.*GPU$'
+
 
