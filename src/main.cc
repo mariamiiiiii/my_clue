@@ -196,7 +196,7 @@ void mainRun(const std::string &inputFileName,
     using Dim = alpaka::DimInt<1u>;
     using Idx = uint32_t;
     using Acc = SelectedAcc<Dim, Idx>;
-    CLUEAlgoAlpaka<Acc, TilesConstants, NLAYERS> clueAlgo(
+    CLUEAlgoAlpaka<Acc, alpaka::Queue<Acc, alpaka::NonBlocking>, TilesConstants, NLAYERS> clueAlgo(
         dc, rhoc, outlierDeltaFactor, verbose);
     vals.clear();
     for (unsigned r = 0; r < repeats; r++) {

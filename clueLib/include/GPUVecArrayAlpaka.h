@@ -33,8 +33,10 @@ struct VecArray {
   inline constexpr T &back() const {
     if (m_size > 0) {
       return m_data[m_size - 1];
-    } else
+    } else {
+      assert(0);
       return T();  // undefined behaviour
+    }
   }
 
   // thread-safe version of the vector, when used in a CUDA kernel
@@ -45,8 +47,9 @@ struct VecArray {
       m_data[previousSize] = element;
       return previousSize;
     } else {
+      assert(0);
       atomicSub(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
-      assert(("Too few elemets reserved", maxSize));
+      //assert(("Too few elemets reserved", maxSize));
       return -1;
     }
   }
@@ -58,6 +61,7 @@ struct VecArray {
       (new (&m_data[previousSize]) T(std::forward<Ts>(args)...));
       return previousSize;
     } else {
+      assert(0);
       atomicSub(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
       return -1;
     }
@@ -68,9 +72,25 @@ struct VecArray {
     if (m_size > 0) {
       auto previousSize = m_size--;
       return m_data[previousSize - 1];
-    } else
+    } else {
+      assert(0);
       return T();
+    }
   }
+
+  template <typename T_Acc>
+    ALPAKA_FN_ACC inline void sort_unsafe(const T_Acc &acc) {
+      for (int i = 0; i < m_size - 1; ++i) {
+        for (int j = 0; j < m_size - i - 1; ++j) {
+          if (m_data[j] > m_data[j + 1]) {
+            // Swap elements if they are in the wrong order
+            T temp = m_data[j];
+            m_data[j] = m_data[j + 1];
+            m_data[j + 1] = temp;
+          }
+        }
+      }
+    }
 
   inline constexpr T const *begin() const { return m_data; }
   inline constexpr T const *end() const { return m_data + m_size; }

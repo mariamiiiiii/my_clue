@@ -19,7 +19,7 @@ struct int4 {
 template <typename Acc, typename T>
 class TilesAlpaka {
  public:
-  using GPUVect = GPUAlpaka::VecArray<int, T::maxTileDepth>;
+  using GPUVect = GPUAlpaka::VecArray<unsigned int, T::maxTileDepth>;
   // constructor
   TilesAlpaka(const Acc& acc) { acc_ = acc; };
 
@@ -67,6 +67,11 @@ class TilesAlpaka {
 
   ALPAKA_FN_HOST_ACC void clear() {
     for (auto& t : tiles_) t.reset();
+  }
+
+  ALPAKA_FN_HOST_ACC void sort_unsafe(int i) {
+    //for (int i = 0; i < T::nTiles; ++i)
+      tiles_[i].sort_unsafe(acc_);
   }
 
   ALPAKA_FN_HOST_ACC GPUVect& operator[](int globalBinId) {
