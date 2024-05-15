@@ -15,7 +15,7 @@ set(ALPAKA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/alpaka CACHE PATH "Path to ALPAKA (by
 set(CHECK_CUDA_VERSION ON CACHE BOOL "Check CUDA Runtime version.")
 
 # Activate VERBOSE output
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 # Check for CUDA
 include(CheckLanguage)
