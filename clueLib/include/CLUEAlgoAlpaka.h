@@ -155,19 +155,19 @@ class DeviceRunner {
   DeviceRawPointers ptrs_;
 };
 
-  CLUEAlgoAlpaka(TQueue queue,
-      float dc, float kappa, float outlierDeltaFactor, bool verbose)
-      : CLUEAlgo<T, NLAYERS>(dc, kappa, outlierDeltaFactor, verbose),
-        device_(alpaka::getDev(queue)),
-        queue_(queue),
-        host_(alpaka::getDevByIdx<alpaka::DevCpu>(0u)) {
-  }
+CLUEAlgoAlpaka(TQueue & queue,
+    float dc, float kappa, float outlierDeltaFactor, bool verbose)
+  : CLUEAlgo<T, NLAYERS>(dc, kappa, outlierDeltaFactor, verbose),
+  device_(alpaka::getDev(queue)),
+  queue_(queue),
+  host_(alpaka::getDevByIdx(alpaka::Platform<alpaka::PlatformCpu>{}, 0u)) {}
 
-  CLUEAlgoAlpaka(float dc, float kappa, float outlierDeltaFactor, bool verbose, bool useAbsoluteSigma=false)
-      : CLUEAlgo<T, NLAYERS>(dc, kappa, outlierDeltaFactor, verbose, useAbsoluteSigma),
-        device_(alpaka::getDevByIdx<TAcc>(0u)),
-        queue_(device_),
-        host_(alpaka::getDevByIdx<alpaka::DevCpu>(0u)) {
+
+CLUEAlgoAlpaka(float dc, float kappa, float outlierDeltaFactor, bool verbose, bool useAbsoluteSigma=false)
+  : CLUEAlgo<T, NLAYERS>(dc, kappa, outlierDeltaFactor, verbose, useAbsoluteSigma),
+  device_(alpaka::getDevByIdx(alpaka::Platform<TAcc>{}, 0u)),
+  queue_(device_),
+  host_(alpaka::getDevByIdx(alpaka::Platform<alpaka::PlatformCpu>{}, 0u)) {
     init_device();
   }
 

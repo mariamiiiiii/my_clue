@@ -24,14 +24,6 @@ class TilesAlpaka {
   TilesAlpaka(const Acc& acc) { acc_ = acc; };
 
   ALPAKA_FN_ACC
-  void fill(const std::vector<float>& x, const std::vector<float>& y) {
-    auto cellsSize = x.size();
-    for (unsigned int i = 0; i < cellsSize; ++i) {
-      tiles_[getGlobalBin(x[i], y[i])].push_back(acc_, i);
-    }
-  }
-
-  ALPAKA_FN_ACC
   void fill(float x, float y, int i) {
     tiles_[getGlobalBin(x, y)].push_back(acc_, i);
   }
