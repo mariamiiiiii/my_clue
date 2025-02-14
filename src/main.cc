@@ -3,11 +3,11 @@
 
 #include <chrono>
 #include <fstream>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
+#include <numeric>
 #include <regex>
 #include <string>
-#include <numeric>
 
 #include "CLUEAlgo.h"
 
@@ -18,7 +18,7 @@
 #endif
 
 #ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_ENABLED
-#include "tbb/task_scheduler_init.h"
+#include "tbb/global_control.h"
 #endif
 
 #define NLAYERS 100
@@ -29,17 +29,18 @@ void exclude_stats_outliers(std::vector<float> &v) {
   if (v.size() == 1)
     return;
   float mean = std::accumulate(v.begin(), v.end(), 0.0) / v.size();
-  float sum_sq_diff = std::accumulate(
-      v.begin(), v.end(), 0.0,
-      [mean](float acc, float x) { return acc + (x - mean) * (x - mean); });
+  float sum_sq_diff =
+      std::accumulate(v.begin(), v.end(), 0.0, [mean](float acc, float x) {
+        return acc + (x - mean) * (x - mean);
+      });
   float stddev = std::sqrt(sum_sq_diff / (v.size() - 1));
   std::cout << "Sigma cut outliers: " << stddev << std::endl;
   float z_score_threshold = 3.0;
   v.erase(std::remove_if(v.begin(), v.end(),
                          [mean, stddev, z_score_threshold](float x) {
-            float z_score = std::abs(x - mean) / stddev;
-            return z_score > z_score_threshold;
-          }),
+                           float z_score = std::abs(x - mean) / stddev;
+                           return z_score > z_score_threshold;
+                         }),
           v.end());
 }
 
@@ -196,8 +197,9 @@ void mainRun(const std::string &inputFileName,
     using Dim = alpaka::DimInt<1u>;
     using Idx = uint32_t;
     using Acc = SelectedAcc<Dim, Idx>;
-    CLUEAlgoAlpaka<Acc, alpaka::Queue<Acc, alpaka::NonBlocking>, TilesConstants, NLAYERS> clueAlgo(
-        dc, rhoc, outlierDeltaFactor, verbose);
+    CLUEAlgoAlpaka<Acc, alpaka::Queue<Acc, alpaka::NonBlocking>, TilesConstants,
+                   NLAYERS>
+        clueAlgo(dc, rhoc, outlierDeltaFactor, verbose);
     vals.clear();
     for (unsigned r = 0; r < repeats; r++) {
       if (!clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
@@ -242,11 +244,12 @@ void mainRun(const std::string &inputFileName,
 
     printTimingReport(vals, repeats, "SUMMARY Native CPU:");
     // output result to outputFileName. -1 means all points.
-    if (verbose) clueAlgo.verboseResults(outputFileName, -1);
+    if (verbose)
+      clueAlgo.verboseResults(outputFileName, -1);
   }
 
   std::cout << "Finished running CLUE algorithm" << std::endl;
-}  // end of testRun()
+} // end of testRun()
 
 int main(int argc, char *argv[]) {
   //////////////////////////////
@@ -265,37 +268,38 @@ int main(int argc, char *argv[]) {
 
   while ((opt = getopt(argc, argv, "i:d:r:o:e:t:uv")) != -1) {
     switch (opt) {
-      case 'i': /* input filename */
-        inputFileName = string(optarg);
-        break;
-      case 'd': /* delta_c */
-        dc = stof(string(optarg));
-        break;
-      case 'r': /* critical density */
-        rhoc = stof(string(optarg));
-        break;
-      case 'o': /* outlier factor */
-        outlierDeltaFactor = stof(string(optarg));
-        break;
-      case 'e': /* number of repeated session(s) a the selected input file */
-        repeats = stoi(string(optarg));
-        break;
-      case 't': /* number of TBB threads */
-        TBBNumberOfThread = stoi(string(optarg));
-        std::cout << "Using " << TBBNumberOfThread;
-        std::cout << " TBB Threads" << std::endl;
-        break;
-      case 'u': /* Use accelerator */
-        use_accelerator = true;
-        break;
-      case 'v': /* Verbose output */
-        verbose = true;
-        break;
-      default:
-        std::cout << "bin/main -i [fileName] -d [dc] -r [rhoc] -o "
-                     "[outlierDeltaFactor] -e [repeats] -t "
-                     "[NumTBBThreads] -u -v" << std::endl;
-        exit(EXIT_FAILURE);
+    case 'i': /* input filename */
+      inputFileName = string(optarg);
+      break;
+    case 'd': /* delta_c */
+      dc = stof(string(optarg));
+      break;
+    case 'r': /* critical density */
+      rhoc = stof(string(optarg));
+      break;
+    case 'o': /* outlier factor */
+      outlierDeltaFactor = stof(string(optarg));
+      break;
+    case 'e': /* number of repeated session(s) a the selected input file */
+      repeats = stoi(string(optarg));
+      break;
+    case 't': /* number of TBB threads */
+      TBBNumberOfThread = stoi(string(optarg));
+      std::cout << "Using " << TBBNumberOfThread;
+      std::cout << " TBB Threads" << std::endl;
+      break;
+    case 'u': /* Use accelerator */
+      use_accelerator = true;
+      break;
+    case 'v': /* Verbose output */
+      verbose = true;
+      break;
+    default:
+      std::cout << "bin/main -i [fileName] -d [dc] -r [rhoc] -o "
+                   "[outlierDeltaFactor] -e [repeats] -t "
+                   "[NumTBBThreads] -u -v"
+                << std::endl;
+      exit(EXIT_FAILURE);
     }
   }
 
@@ -304,7 +308,8 @@ int main(int argc, char *argv[]) {
     std::cout << "Setting up " << TBBNumberOfThread << " TBB Threads"
               << std::endl;
   }
-  tbb::task_scheduler_init init(TBBNumberOfThread);
+  tbb::global_control init(tbb::global_control::max_allowed_parallelism,
+                           TBBNumberOfThread);
 #endif
 
   //////////////////////////////

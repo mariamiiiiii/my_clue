@@ -1,12 +1,11 @@
 sample-cpu:
-  image: gitlab-registry.cern.ch/ci-tools/ci-worker:cc7
+  image: gitlab-registry.cern.ch/ci-tools/ci-worker:el9
   extends:
     - .build
     - .test
 
-
 sample-gpu-nvidia-t4:
-  image: gitlab-registry.cern.ch/ci-tools/ci-worker:cc7
+  image: gitlab-registry.cern.ch/ci-tools/ci-worker:el9
   tags:
     - k8s-gpu
   extends:
@@ -23,7 +22,7 @@ sample-gpu-nvidia-t4:
     GIT_SUBMODULE_STRATEGY: recursive
   script:
     # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_107_cuda/x86_64-el9-gcc11-opt/setup.sh
     - mkdir build && cd build
     - cmake ../ -DCHECK_CUDA_VERSION=OFF
     - cmake --build .
@@ -38,7 +37,7 @@ sample-gpu-nvidia-t4:
     GIT_SUBMODULE_STRATEGY: recursive
   script:
     # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_107_cuda/x86_64-el9-gcc11-opt/setup.sh
     - mkdir build && cd build
     - cmake ../ -DCHECK_CUDA_VERSION=OFF
     - cmake --build .
@@ -54,10 +53,8 @@ sample-gpu-nvidia-t4:
     GIT_SUBMODULE_STRATEGY: recursive
   script:
     # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_107_cuda/x86_64-el9-gcc11-opt/setup.sh
     - mkdir build && cd build
     - cmake ../ -DCHECK_CUDA_VERSION=OFF
     - cmake --build .
     - ctest -R '.*GPU$'
-
-

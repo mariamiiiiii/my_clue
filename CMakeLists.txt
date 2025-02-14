@@ -12,8 +12,6 @@ set(ALPAKA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/alpaka CACHE PATH "Path to ALPAKA (by
 # Location of TBB
 #set(TBB_DIR "/cvmfs/cms.cern.ch/slc7_amd64_gcc820/external/tbb/2020_U2-ghbfee/cmake/TBB/")
 
-set(CHECK_CUDA_VERSION ON CACHE BOOL "Check CUDA Runtime version.")
-
 # Activate VERBOSE output
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 
@@ -24,12 +22,6 @@ if(CMAKE_CUDA_COMPILER)
   enable_language(CUDA)
   set(CMAKE_CXX_STANDARD 17)
   set(CMAKE_CUDA_ARCHITECTURES "60;70;75")
-  if(CHECK_CUDA_VERSION)
-    set(MAX_CUDA_VERSION "11.2.142")
-    if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER ${MAX_CUDA_VERSION})
-      message(FATAL_ERROR "Max supported NVCC is ${MAX_CUDA_VERSION}")
-    endif()
-  endif()
 else()
   message(STATUS "No CUDA compiler found. Still, you can run the C++ version!")
 endif()
@@ -47,7 +39,13 @@ if(NOT CMAKE_CXX_STANDARD MATCHES "17|20")
   message(FATAL_ERROR "Unsupported C++ standard: ${CMAKE_CXX_STANDARD}")
 endif()
 
+# Find Boost
+set(Boost_DEBUG 1)
 find_package(Boost REQUIRED)
+
+# Include Boost headers
+include_directories(${Boost_INCLUDE_DIRS})
+
 if(Boost_FOUND)
   message(STATUS "Boost package found!")
 endif()
