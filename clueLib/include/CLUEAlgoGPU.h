@@ -219,7 +219,7 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
 template <typename T>
 __global__ void kernel_compute_histogram(TilesGPU<T> *d_hist,
                                          const PointsPtr d_points,
-                                         int numberOfPoints, cudaStream_t) {
+                                         int numberOfPoints) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < numberOfPoints) {
     // push index of points into tiles
@@ -230,7 +230,7 @@ __global__ void kernel_compute_histogram(TilesGPU<T> *d_hist,
 template <typename T>
 __global__ void kernel_calculate_densityTile(TilesGPU<T> *d_hist,
                                          PointsPtr d_points, float dc,
-                                         int numberOfPoints, cudaStream_t) {
+                                         int numberOfPoints) {
   int layeri = blockIdx.y;
   int globalBinOnLayer = blockIdx.x;
   int bin = threadIdx.x;
@@ -279,7 +279,7 @@ __global__ void kernel_calculate_densityTile(TilesGPU<T> *d_hist,
 template <typename T>
 __global__ void kernel_calculate_density(TilesGPU<T> *d_hist,
                                          PointsPtr d_points, float dc,
-                                         int numberOfPoints, cudaStream_t) {
+                                         int numberOfPoints) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < numberOfPoints) {
     float rhoi{0.};
@@ -325,8 +325,7 @@ template <typename T>
 __global__ void kernel_calculate_distanceToHigher(TilesGPU<T> *d_hist,
                                                   PointsPtr d_points,
                                                   float outlierDeltaFactor,
-                                                  float dc, int numberOfPoints,
-                                                  cudaStream_t) {
+                                                  float dc, int numberOfPoints) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
 
   const float dm = outlierDeltaFactor * dc;
@@ -383,8 +382,7 @@ template <typename T>
 __global__ void kernel_calculate_distanceToHigherTile(TilesGPU<T> *d_hist,
                                                   PointsPtr d_points,
                                                   float outlierDeltaFactor,
-                                                  float dc, int numberOfPoints,
-                                                  cudaStream_t) {
+                                                  float dc, int numberOfPoints) {
   int layeri = blockIdx.y;
   int globalBinOnLayer = blockIdx.x;
   int bin = threadIdx.x;
@@ -441,8 +439,7 @@ __global__ void kernel_calculate_distanceToHigherTile(TilesGPU<T> *d_hist,
 __global__ void kernel_find_clusters(
     GPU::VecArray<int, maxNSeeds> *d_seeds,
     GPU::VecArray<int, maxNFollowers> *d_followers, PointsPtr d_points,
-    float outlierDeltaFactor, float dc, float rhoc, int numberOfPoints,
-    cudaStream_t) {
+    float outlierDeltaFactor, float dc, float rhoc, int numberOfPoints) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (i < numberOfPoints) {
@@ -471,8 +468,7 @@ __global__ void kernel_find_clusters(
 __global__ void kernel_find_clusters_kappa(
     GPU::VecArray<int, maxNSeeds> *d_seeds,
     GPU::VecArray<int, maxNFollowers> *d_followers, PointsPtr d_points,
-    float outlierDeltaFactor, float dc, float kappa, int numberOfPoints,
-    cudaStream_t) {
+    float outlierDeltaFactor, float dc, float kappa, int numberOfPoints) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (i < numberOfPoints) {
@@ -502,7 +498,7 @@ __global__ void kernel_find_clusters_kappa(
 __global__ void kernel_assign_clusters(
     const GPU::VecArray<int, maxNSeeds> *d_seeds,
     const GPU::VecArray<int, maxNFollowers> *d_followers, PointsPtr d_points,
-    int numberOfPoints, cudaStream_t) {
+    int numberOfPoints) {
   int idxCls = blockIdx.x * blockDim.x + threadIdx.x;
   const auto &seeds = d_seeds[0];
   const auto nSeeds = seeds.size();
@@ -550,32 +546,32 @@ void CLUEAlgoGPU<T, NLAYERS, W>::makeClusters() {
   const dim3 blockSize(64, 1, 1);
   const dim3 gridSize(ceil(points_.n / static_cast<float>(blockSize.x)), 1, 1);
   kernel_compute_histogram<T>
-      <<<gridSize, blockSize>>>(d_hist, d_points, points_.n, stream_);
+      <<<gridSize, blockSize, 0, stream_>>>(d_hist, d_points, points_.n);
 
   if constexpr (std::is_same_v<W, WorkDivByPoints>) {
     kernel_calculate_density<T>
-      <<<gridSize, blockSize>>>(d_hist, d_points, dc_, points_.n, stream_);
-    kernel_calculate_distanceToHigher<T><<<gridSize, blockSize>>>(
-        d_hist, d_points, outlierDeltaFactor_, dc_, points_.n, stream_);
+      <<<gridSize, blockSize, 0, stream_>>>(d_hist, d_points, dc_, points_.n);
+    kernel_calculate_distanceToHigher<T><<<gridSize, blockSize, 0, stream_>>>(
+        d_hist, d_points, outlierDeltaFactor_, dc_, points_.n);
   }
 
   if constexpr (std::is_same_v<W, WorkDivByTile>) {
     const dim3 gridSizeTile(T::nTiles, NLAYERS, 1);
     const dim3 blockSizeTile(T::maxTileDepth, 1, 1);
     kernel_calculate_densityTile<T>
-      <<<gridSizeTile, blockSizeTile>>>(d_hist, d_points, dc_, points_.n, stream_);
-    kernel_calculate_distanceToHigherTile<T><<<gridSizeTile, blockSizeTile>>>(
-        d_hist, d_points, outlierDeltaFactor_, dc_, points_.n, stream_);
+      <<<gridSizeTile, blockSizeTile, 0, stream_>>>(d_hist, d_points, dc_, points_.n);
+    kernel_calculate_distanceToHigherTile<T><<<gridSizeTile, blockSizeTile, 0, stream_>>>(
+        d_hist, d_points, outlierDeltaFactor_, dc_, points_.n);
   }
 
   if (!useAbsoluteSigma_) {
-    kernel_find_clusters<<<gridSize, blockSize>>>(d_seeds, d_followers, d_points,
+    kernel_find_clusters<<<gridSize, blockSize, 0, stream_>>>(d_seeds, d_followers, d_points,
                                                   outlierDeltaFactor_, dc_, rhoc_,
-                                                  points_.n, stream_);
+                                                  points_.n);
   } else {
-    kernel_find_clusters_kappa<<<gridSize, blockSize>>>(d_seeds, d_followers, d_points,
+    kernel_find_clusters_kappa<<<gridSize, blockSize, 0, stream_>>>(d_seeds, d_followers, d_points,
                                                         outlierDeltaFactor_, dc_, kappa_,
-                                                        points_.n, stream_);
+                                                        points_.n);
   }
 
   ////////////////////////////////////////////
@@ -583,8 +579,8 @@ void CLUEAlgoGPU<T, NLAYERS, W>::makeClusters() {
   // 1 point per seeds
   ////////////////////////////////////////////
   const dim3 gridSize_nseeds(ceil(maxNSeeds / 1024.0), 1, 1);
-  kernel_assign_clusters<<<gridSize_nseeds, blockSize>>>(
-      d_seeds, d_followers, d_points, points_.n, stream_);
+  kernel_assign_clusters<<<gridSize_nseeds, blockSize, 0, stream_>>>(
+      d_seeds, d_followers, d_points, points_.n);
 
   copy_tohost();
   CHECK_CUDA_ERROR(cudaStreamSynchronize(stream_));
