@@ -21,14 +21,14 @@ class Tiles {
 
   Tiles() { tiles_.resize(T::nTiles); }
 
-  void fill(const std::vector<float>& x, const std::vector<float>& y) {
-    auto cellsSize = x.size();
-    for (unsigned int i = 0; i < cellsSize; ++i) {
-      tiles_[getGlobalBin(x[i], y[i])].push_back(i);
-    }
-  }
+  // void fill(const std::vector<float>& x, const std::vector<float>& y) {
+  //   auto cellsSize = x.size();
+  //   for (unsigned int i = 0; i < cellsSize; ++i) {
+  //     tiles_[getGlobalBin(x[i], y[i])].push_back(i);
+  //   }
+  // }
 
-  void fill(float x, float y, int i) {
+  void fill(float x, float y, int i) {      
     tiles_[getGlobalBin(x, y)].push_back(i);
   }
 

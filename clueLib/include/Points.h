@@ -2,47 +2,34 @@
 #define Points_h
 
 struct Points {
-  // For internally managed input
-  std::vector<float> x;
-  std::vector<float> y;
-  std::vector<int> layer;
-  std::vector<float> weight;
-  std::vector<float> sigmaNoise;
-
-  // For externally managed input
   const float* p_x;
   const float* p_y;
   const int* p_layer;
   const float* p_weight;
   const float* p_sigmaNoise;
 
-
-  std::vector<float> rho;
-  std::vector<float> delta;
-  std::vector<unsigned int> nearestHigher;
-  std::vector<int> clusterIndex;
+  float* p_rho;
+  float* p_delta;
+  unsigned int* p_nearestHigher;
+  int* p_clusterIndex;
   std::vector<std::vector<int>> followers;
-  std::vector<uint8_t> isSeed;
+  uint8_t* p_isSeed;
 
   int n;
 
   void clear() {
-    x.clear();
-    y.clear();
-    layer.clear();
-    weight.clear();
 
     p_x = nullptr;
     p_y = nullptr;
     p_layer = nullptr;
     p_weight = nullptr;
 
-    rho.clear();
-    delta.clear();
-    nearestHigher.clear();
-    clusterIndex.clear();
+    p_rho = nullptr;
+    p_delta = nullptr;
+    p_nearestHigher = nullptr;
+    p_clusterIndex = nullptr;
     followers.clear();
-    isSeed.clear();
+    p_isSeed = nullptr;
 
     n = 0;
   }
