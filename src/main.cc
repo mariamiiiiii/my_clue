@@ -3,11 +3,11 @@
 
 #include <chrono>
 #include <fstream>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
+#include <numeric>
 #include <regex>
 #include <string>
-#include <numeric>
 
 #include "CLUEAlgo.h"
 #include "CUDAEssentials.h"
@@ -30,17 +30,18 @@ void exclude_stats_outliers(std::vector<float> &v) {
   if (v.size() == 1)
     return;
   float mean = std::accumulate(v.begin(), v.end(), 0.0) / v.size();
-  float sum_sq_diff = std::accumulate(
-      v.begin(), v.end(), 0.0,
-      [mean](float acc, float x) { return acc + (x - mean) * (x - mean); });
+  float sum_sq_diff =
+      std::accumulate(v.begin(), v.end(), 0.0, [mean](float acc, float x) {
+        return acc + (x - mean) * (x - mean);
+      });
   float stddev = std::sqrt(sum_sq_diff / (v.size() - 1));
   std::cout << "Sigma cut outliers: " << stddev << std::endl;
   float z_score_threshold = 3.0;
   v.erase(std::remove_if(v.begin(), v.end(),
                          [mean, stddev, z_score_threshold](float x) {
-            float z_score = std::abs(x - mean) / stddev;
-            return z_score > z_score_threshold;
-          }),
+                           float z_score = std::abs(x - mean) / stddev;
+                           return z_score > z_score_threshold;
+                         }),
           v.end());
 }
 
@@ -339,7 +340,8 @@ void mainRun(const std::string &inputFileName,
 
     printTimingReport(vals, repeats, "SUMMARY Native CPU:");
     // output result to outputFileName. -1 means all points.
-    if (verbose) clueAlgo.verboseResults(outputFileName, -1);
+    if (verbose)
+      clueAlgo.verboseResults(outputFileName, -1);
   }
 
   std::cout << "Finished running CLUE algorithm" << std::endl;
@@ -363,37 +365,38 @@ int main(int argc, char *argv[]) {
 
   while ((opt = getopt(argc, argv, "i:d:r:o:e:t:uv")) != -1) {
     switch (opt) {
-      case 'i': /* input filename */
-        inputFileName = string(optarg);
-        break;
-      case 'd': /* delta_c */
-        dc = stof(string(optarg));
-        break;
-      case 'r': /* critical density */
-        rhoc = stof(string(optarg));
-        break;
-      case 'o': /* outlier factor */
-        outlierDeltaFactor = stof(string(optarg));
-        break;
-      case 'e': /* number of repeated session(s) a the selected input file */
-        repeats = stoi(string(optarg));
-        break;
-      case 't': /* number of TBB threads */
-        TBBNumberOfThread = stoi(string(optarg));
-        std::cout << "Using " << TBBNumberOfThread;
-        std::cout << " TBB Threads" << std::endl;
-        break;
-      case 'u': /* Use accelerator */
-        use_accelerator = true;
-        break;
-      case 'v': /* Verbose output */
-        verbose = true;
-        break;
-      default:
-        std::cout << "bin/main -i [fileName] -d [dc] -r [rhoc] -o "
-                     "[outlierDeltaFactor] -e [repeats] -t "
-                     "[NumTBBThreads] -u -v" << std::endl;
-        exit(EXIT_FAILURE);
+    case 'i': /* input filename */
+      inputFileName = string(optarg);
+      break;
+    case 'd': /* delta_c */
+      dc = stof(string(optarg));
+      break;
+    case 'r': /* critical density */
+      rhoc = stof(string(optarg));
+      break;
+    case 'o': /* outlier factor */
+      outlierDeltaFactor = stof(string(optarg));
+      break;
+    case 'e': /* number of repeated session(s) a the selected input file */
+      repeats = stoi(string(optarg));
+      break;
+    case 't': /* number of TBB threads */
+      TBBNumberOfThread = stoi(string(optarg));
+      std::cout << "Using " << TBBNumberOfThread;
+      std::cout << " TBB Threads" << std::endl;
+      break;
+    case 'u': /* Use accelerator */
+      use_accelerator = true;
+      break;
+    case 'v': /* Verbose output */
+      verbose = true;
+      break;
+    default:
+      std::cout << "bin/main -i [fileName] -d [dc] -r [rhoc] -o "
+                   "[outlierDeltaFactor] -e [repeats] -t "
+                   "[NumTBBThreads] -u -v"
+                << std::endl;
+      exit(EXIT_FAILURE);
     }
   }
 

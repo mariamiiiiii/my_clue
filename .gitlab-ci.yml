@@ -1,12 +1,11 @@
 sample-cpu:
-  image: gitlab-registry.cern.ch/ci-tools/ci-worker:cc7
+  image: gitlab-registry.cern.ch/linuxsupport/rpmci/builder-al9:latest
   extends:
     - .build
     - .test
 
-
 sample-gpu-nvidia-t4:
-  image: gitlab-registry.cern.ch/ci-tools/ci-worker:cc7
+  image: gitlab-registry.cern.ch/linuxsupport/rpmci/builder-al9:latest
   tags:
     - k8s-gpu
   extends:
@@ -21,9 +20,20 @@ sample-gpu-nvidia-t4:
   variables:
     # Locally download ALPAKA as submodule
     GIT_SUBMODULE_STRATEGY: recursive
+  before_script:
+    - dnf install -y which
+    - dnf install -y libtirpc
+    - dnf install -y libicu
+    - dnf install -y mesa-libGL mesa-libGL-devel
+    - dnf install -y pcre2 pcre2-devel
+    - dnf install -y libXrender libXrender-devel
+    - dnf install -y libSM libSM-devel
+    - dnf install -y gcc gcc-c++ libstdc++-devel
+    - echo "Forcing Bash"
+    - bash
   script:
     # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_107_cuda/x86_64-el9-gcc11-opt/setup.sh
     - mkdir build && cd build
     - cmake ../ -DCHECK_CUDA_VERSION=OFF
     - cmake --build .
@@ -36,9 +46,20 @@ sample-gpu-nvidia-t4:
   variables:
     # Locally download ALPAKA as submodule
     GIT_SUBMODULE_STRATEGY: recursive
+  before_script:
+    - dnf install -y which
+    - dnf install -y libtirpc
+    - dnf install -y libicu
+    - dnf install -y mesa-libGL mesa-libGL-devel
+    - dnf install -y pcre2 pcre2-devel
+    - dnf install -y libXrender libXrender-devel
+    - dnf install -y libSM libSM-devel
+    - dnf install -y gcc gcc-c++ libstdc++-devel
+    - echo "Forcing Bash"
+    - bash
   script:
     # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_107_cuda/x86_64-el9-gcc11-opt/setup.sh
     - mkdir build && cd build
     - cmake ../ -DCHECK_CUDA_VERSION=OFF
     - cmake --build .
@@ -54,10 +75,8 @@ sample-gpu-nvidia-t4:
     GIT_SUBMODULE_STRATEGY: recursive
   script:
     # We need to have all the needed software available. Use central sft.cern.ch/LCG.
-    - source /cvmfs/sft.cern.ch/lcg/views/LCG_102cuda/x86_64-centos7-gcc8-opt/setup.sh
+    - source /cvmfs/sft.cern.ch/lcg/views/LCG_107_cuda/x86_64-el9-gcc11-opt/setup.sh
     - mkdir build && cd build
     - cmake ../ -DCHECK_CUDA_VERSION=OFF
     - cmake --build .
     - ctest -R '.*GPU$'
-
-
