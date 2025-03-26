@@ -10,6 +10,7 @@
 #include <numeric>
 
 #include "CLUEAlgo.h"
+#include "CUDAEssentials.h"
 
 #if defined(USE_ALPAKA)
 #include "CLUEAlgoAlpaka.h"
@@ -18,7 +19,7 @@
 #endif
 
 #ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_ENABLED
-#include "tbb/task_scheduler_init.h"
+#include <tbb/global_control.h>
 #endif
 
 #define NLAYERS 100
@@ -69,9 +70,29 @@ void printTimingReport(std::vector<float> &vals, int repeats,
             << sigma << " [ms]" << std::endl;
 }
 
-void readDataFromFile(const std::string &inputFileName, std::vector<float> &x,
-                      std::vector<float> &y, std::vector<int> &layer,
-                      std::vector<float> &weight) {
+//another function same but for output, also allocate output with correct size
+
+void readDataFromFile(const std::string &inputFileName, float* &x,
+                      float* &y, int* &layer, float* &weight, int gpuId, int capacity, bool use_accelerator, int &size) {
+
+  int i = 0;
+
+  if (use_accelerator) {
+    #if !defined(USE_ALPAKA) 
+      // Allocate CUDA-managed memory
+      CHECK_CUDA_ERROR(cudaMallocManaged(&x, capacity * sizeof(float)));
+      CHECK_CUDA_ERROR(cudaMallocManaged(&y, capacity * sizeof(float)));
+      CHECK_CUDA_ERROR(cudaMallocManaged(&layer, capacity * sizeof(int)));
+      CHECK_CUDA_ERROR(cudaMallocManaged(&weight, capacity * sizeof(float)));
+    #endif
+  }
+  else {
+    x = new float[capacity];
+    y = new float[capacity];
+    layer = new int[capacity];
+    weight = new float[capacity];
+  }
+
   // make dummy layers
   for (int l = 0; l < NLAYERS; l++) {
     // open csv file
@@ -79,16 +100,59 @@ void readDataFromFile(const std::string &inputFileName, std::vector<float> &x,
     std::string value = "";
     // Iterate through each line and split the content using delimeter
     while (getline(iFile, value, ',')) {
-      x.push_back(std::stof(value));
-      getline(iFile, value, ',');
-      y.push_back(std::stof(value));
-      getline(iFile, value, ',');
-      layer.push_back(std::stoi(value) + l);
-      getline(iFile, value);
-      weight.push_back(std::stof(value));
+      if(i < capacity) {
+        x[i] = std::stof(value);
+        getline(iFile, value, ',');
+        y[i] = std::stof(value);
+        getline(iFile, value, ',');
+        layer[i] = std::stoi(value) + l;
+        getline(iFile, value);
+        weight[i] = std::stof(value);
+      }
+      else{
+        std::cerr << "Error: Capacity exceeded (" << capacity << "). Exiting..." << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      i++;
     }
     iFile.close();
   }
+  size = i;
+}
+
+void allocateOutputData (float* &rho, float* &delta, unsigned int* &nearestHigher, int* &clusterIndex, uint8_t* &isSeed, bool use_accelerator, int size) {
+  if (use_accelerator) {
+    #if !defined(USE_ALPAKA) 
+      // Allocate CUDA-managed memory
+      CHECK_CUDA_ERROR(cudaMallocManaged(&rho, size * sizeof(float)));
+      CHECK_CUDA_ERROR(cudaMallocManaged(&delta, size * sizeof(float)));
+      CHECK_CUDA_ERROR(cudaMallocManaged(&nearestHigher, size * sizeof(int)));
+      CHECK_CUDA_ERROR(cudaMallocManaged(&clusterIndex, size * sizeof(int)));
+      CHECK_CUDA_ERROR(cudaMallocManaged(&isSeed, size * sizeof(uint8_t)));
+
+    #endif
+  }
+  else{
+    rho = new float[size];
+    delta = new float[size];
+    nearestHigher = new unsigned int[size];
+    clusterIndex = new int[size];
+    isSeed = new uint8_t[size];
+  }
+}
+
+void free(float* &x, float* &y, int* &layer, float* &weight, float* &rho, float* &delta, unsigned int* &nearestHigher, int* &clusterIndex, uint8_t* &isSeed) {
+  // input variables
+  CHECK_CUDA_ERROR(cudaFree(x));
+  CHECK_CUDA_ERROR(cudaFree(y));
+  CHECK_CUDA_ERROR(cudaFree(layer));
+  CHECK_CUDA_ERROR(cudaFree(weight));
+  // result variables
+  CHECK_CUDA_ERROR(cudaFree(rho));
+  CHECK_CUDA_ERROR(cudaFree(delta));
+  CHECK_CUDA_ERROR(cudaFree(nearestHigher));
+  CHECK_CUDA_ERROR(cudaFree(clusterIndex));
+  CHECK_CUDA_ERROR(cudaFree(isSeed));
 }
 
 std::string create_outputfileName(const std::string &inputFileName,
@@ -123,12 +187,25 @@ void mainRun(const std::string &inputFileName,
   // read toy data from csv file
   //////////////////////////////
   std::cout << "Start to load input points" << std::endl;
-  std::vector<float> x;
-  std::vector<float> y;
-  std::vector<int> layer;
-  std::vector<float> weight;
 
-  readDataFromFile(inputFileName, x, y, layer, weight);
+  // Allocate memory
+  unsigned int capacity = 1000000;
+  int size;
+
+  int gpuId;
+  cudaGetDevice(&gpuId);
+
+  float* x = nullptr;
+  float* y = nullptr;
+  int* layer = nullptr;
+  float* weight = nullptr;
+
+  float* rho = nullptr;
+  float* delta = nullptr;
+  unsigned int* nearestHigher = nullptr;
+  int* clusterIndex = nullptr;
+  uint8_t* isSeed = nullptr;
+
   std::cout << "Finished loading input points" << std::endl;
   // Vector to perform some bread and butter analysis on the timing
   vector<float> vals;
@@ -138,17 +215,22 @@ void mainRun(const std::string &inputFileName,
   //////////////////////////////
   std::cout << "Start to run CLUE algorithm" << std::endl;
   if (use_accelerator) {
+
+  readDataFromFile(inputFileName, x, y, layer, weight, gpuId, capacity, use_accelerator, size);
+
+  allocateOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator, size);
+
 #if !defined(USE_ALPAKA)
     std::cout << "Native CUDA Backend selected" << std::endl;
-    CLUEAlgoGPU<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor,
-                                                  verbose);
+    CLUEAlgoGPU<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor, verbose, size, x, y, layer, weight, 
+      rho, delta, nearestHigher, clusterIndex, isSeed);
     vals.clear();
     for (unsigned r = 0; r < repeats; r++) {
-      if (!clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
-        exit(EXIT_FAILURE);
+      clueAlgo.setInputPoints(size, x, y, layer, weight);
+      clueAlgo.setOutputPoints(size, rho, delta, nearestHigher, clusterIndex, isSeed);
       // measure excution time of makeClusters
       auto start = std::chrono::high_resolution_clock::now();
-      clueAlgo.makeClusters();
+      clueAlgo.makeClusters(); //without size, i can get point_.n
       auto finish = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> elapsed = finish - start;
       std::cout << "Iteration " << r;
@@ -160,18 +242,19 @@ void mainRun(const std::string &inputFileName,
     }
 
     printTimingReport(vals, repeats, "SUMMARY WorkDivByPoints:");
-
-    // output result to outputFileName. -1 means all points.
+    
+     // output result to outputFileName. -1 means all points.
     clueAlgo.verboseResults(outputFileName, -1);
 
     std::cout << "Native CUDA Backend selected WorkDivByTile" << std::endl;
-    CLUEAlgoGPU<TilesConstants, NLAYERS, WorkDivByTile> clueAlgoByTile(
-        dc, rhoc, outlierDeltaFactor, verbose);
+    CLUEAlgoGPU<TilesConstants, NLAYERS, WorkDivByTile> clueAlgoByTile(dc, rhoc, outlierDeltaFactor, verbose, size, x, y, layer, weight, 
+      rho, delta, nearestHigher, clusterIndex, isSeed);
     vals.clear();
     for (unsigned r = 0; r < repeats; r++) {
-      if (!clueAlgoByTile.setPoints(x.size(), &x[0], &y[0], &layer[0],
-                                    &weight[0]))
-        exit(EXIT_FAILURE);
+      // if (!clueAlgoByTile.setPoints(capacity, x, y, layer, weight))
+      clueAlgoByTile.setInputPoints(size, x, y, layer, weight);
+      clueAlgoByTile.setOutputPoints(size, rho, delta, nearestHigher, clusterIndex, isSeed);
+      //   exit(EXIT_FAILURE);
       // measure excution time of makeClusters
       auto start = std::chrono::high_resolution_clock::now();
       clueAlgoByTile.makeClusters();
@@ -187,47 +270,61 @@ void mainRun(const std::string &inputFileName,
 
     printTimingReport(vals, repeats, "SUMMARY WorkDivByTile:");
 
+    
+
     // output result to outputFileName. -1 means all points.
     clueAlgoByTile.verboseResults(outputFileName, -1);
-#elif defined(USE_ALPAKA)
-    std::cout << "ALPAKA 'Backend' selected" << std::endl;
-    using namespace alpaka;
-    // Define the index domain
-    using Dim = alpaka::DimInt<1u>;
-    using Idx = uint32_t;
-    using Acc = SelectedAcc<Dim, Idx>;
-    CLUEAlgoAlpaka<Acc, alpaka::Queue<Acc, alpaka::NonBlocking>, TilesConstants, NLAYERS> clueAlgo(
-        dc, rhoc, outlierDeltaFactor, verbose);
-    vals.clear();
-    for (unsigned r = 0; r < repeats; r++) {
-      if (!clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
-        exit(EXIT_FAILURE);
-      // measure excution time of makeClusters
-      auto start = std::chrono::high_resolution_clock::now();
-      clueAlgo.makeClusters();
-      auto finish = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> elapsed = finish - start;
-      std::cout << "Iteration " << r;
-      std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
-      // Skip first event
-      if (r != 0 or repeats == 1) {
-        vals.push_back(elapsed.count() * 1000);
-      }
-    }
 
-    printTimingReport(vals, repeats, "SUMMARY Alpaka Backend:");
+    free(x, y, layer, weight, rho, delta, nearestHigher, clusterIndex, isSeed);
+    
+// #elif defined(USE_ALPAKA)
+//     std::cout << "ALPAKA 'Backend' selected" << std::endl;
+//     using namespace alpaka;
+//     // Define the index domain
+//     using Dim = alpaka::DimInt<1u>;
+//     using Idx = uint32_t;
+//     using Acc = SelectedAcc<Dim, Idx>;
+//     CLUEAlgoAlpaka<Acc, alpaka::Queue<Acc, alpaka::NonBlocking>, TilesConstants, NLAYERS> clueAlgo(
+//         dc, rhoc, outlierDeltaFactor, verbose);
+//     vals.clear();
+//     for (unsigned r = 0; r < repeats; r++) {
+//       if (!clueAlgo.setPoints(capacity, x, y, layer, weight))
+//         exit(EXIT_FAILURE);
+//       // measure excution time of makeClusters
+//       auto start = std::chrono::high_resolution_clock::now();
+//       clueAlgo.makeClusters();
+//       auto finish = std::chrono::high_resolution_clock::now();
+//       std::chrono::duration<double> elapsed = finish - start;
+//       std::cout << "Iteration " << r;
+//       std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
 
-    // output result to outputFileName. -1 means all points.
-    clueAlgo.verboseResults(outputFileName, -1);
-#endif
-  } else {
+//       // Skip first event
+//       if (r != 0 or repeats == 1) {
+//         vals.push_back(elapsed.count() * 1000);
+//       }
+//     }
+
+//     printTimingReport(vals, repeats, "SUMMARY Alpaka Backend:");
+
+//     // output result to outputFileName. -1 means all points.
+//     clueAlgo.verboseResults(outputFileName, -1);
+ #endif
+   } else {
+
+    readDataFromFile(inputFileName, x, y, layer, weight, gpuId, capacity, use_accelerator, size);
+
+    allocateOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator, size);
+
     std::cout << "Native CPU(serial) Backend selected" << std::endl;
     CLUEAlgo<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor,
                                                verbose);
+
     vals.clear();
     for (int r = 0; r < repeats; r++) {
-      if (!clueAlgo.setPoints(x.size(), &x[0], &y[0], &layer[0], &weight[0]))
-        exit(EXIT_FAILURE);
+      // if (!clueAlgo.copyInputPoints(size, x, y, layer, weight))
+      //   exit(EXIT_FAILURE);  
+      clueAlgo.setInputPoints(size, x, y, layer, weight);
+      clueAlgo.setOutputPoints(size, rho, delta, nearestHigher, clusterIndex, isSeed);
       // measure excution time of makeClusters
       auto start = std::chrono::high_resolution_clock::now();
       clueAlgo.makeClusters();
@@ -247,6 +344,7 @@ void mainRun(const std::string &inputFileName,
 
   std::cout << "Finished running CLUE algorithm" << std::endl;
 }  // end of testRun()
+             
 
 int main(int argc, char *argv[]) {
   //////////////////////////////
@@ -304,7 +402,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Setting up " << TBBNumberOfThread << " TBB Threads"
               << std::endl;
   }
-  tbb::task_scheduler_init init(TBBNumberOfThread);
+  tbb::global_control init(tbb::global_control::max_allowed_parallelism, TBBNumberOfThread);
 #endif
 
   //////////////////////////////
