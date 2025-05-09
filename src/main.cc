@@ -73,10 +73,7 @@ void printTimingReport(std::vector<float> &vals, int repeats,
 
 //another function same but for output, also allocate output with correct size
 
-void readDataFromFile(const std::string &inputFileName, float* &x,
-                      float* &y, int* &layer, float* &weight, int gpuId, int capacity, bool use_accelerator, int &size) {
-
-  int i = 0;
+void allocateInputData(float* &x, float* &y, int* &layer, float* &weight, int capacity, bool use_accelerator) {
 
   if (use_accelerator) {
     #if !defined(USE_ALPAKA) 
@@ -93,6 +90,12 @@ void readDataFromFile(const std::string &inputFileName, float* &x,
     layer = new int[capacity];
     weight = new float[capacity];
   }
+}
+
+void readDataFromFile(const std::string &inputFileName, float* &x, float* &y, int* &layer, float* &weight, int capacity, int &size) {
+
+      
+  int i = 0;
 
   // make dummy layers
   for (int l = 0; l < NLAYERS; l++) {
@@ -184,9 +187,15 @@ void mainRun(const std::string &inputFileName,
              const float rhoc, const float outlierDeltaFactor,
              const bool use_accelerator, const int repeats,
              const bool verbose) {
+
+  cudaFree(nullptr);            
   //////////////////////////////
   // read toy data from csv file
   //////////////////////////////
+
+  std::ofstream outfile("Results", std::ios::trunc);
+  outfile << "Measurements results" << std::endl << std::endl;
+
   std::cout << "Start to load input points" << std::endl;
 
   // Allocate memory
@@ -211,15 +220,25 @@ void mainRun(const std::string &inputFileName,
   // Vector to perform some bread and butter analysis on the timing
   vector<float> vals;
 
+  allocateInputData(x, y, layer, weight, capacity, use_accelerator);
+  
+  auto begin = std::chrono::high_resolution_clock::now();
+
+  readDataFromFile(inputFileName, x, y, layer, weight, capacity, size);
+
+  auto end = std::chrono::high_resolution_clock::now();
+
+  //std::chrono::duration<double> s = end - begin;
+  std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+  outfile << "Chrono time: " << ms.count() << " ms\n" << std::endl;
+    
+  allocateOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator, size);
+
   //////////////////////////////
   // run CLUE algorithm
   //////////////////////////////
   std::cout << "Start to run CLUE algorithm" << std::endl;
   if (use_accelerator) {
-
-  readDataFromFile(inputFileName, x, y, layer, weight, gpuId, capacity, use_accelerator, size);
-
-  allocateOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator, size);
 
 #if !defined(USE_ALPAKA)
     std::cout << "Native CUDA Backend selected" << std::endl;
@@ -232,7 +251,9 @@ void mainRun(const std::string &inputFileName,
       // measure excution time of makeClusters
       auto start = std::chrono::high_resolution_clock::now();
       clueAlgo.makeClusters(); //without size, i can get point_.n
+      //clueAlgo.Sync();
       auto finish = std::chrono::high_resolution_clock::now();
+      clueAlgo.Sync();
       std::chrono::duration<double> elapsed = finish - start;
       std::cout << "Iteration " << r;
       std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
@@ -243,8 +264,8 @@ void mainRun(const std::string &inputFileName,
     }
 
     printTimingReport(vals, repeats, "SUMMARY WorkDivByPoints:");
-    
-     // output result to outputFileName. -1 means all points.
+
+    // output result to outputFileName. -1 means all points.
     clueAlgo.verboseResults(outputFileName, -1);
 
     std::cout << "Native CUDA Backend selected WorkDivByTile" << std::endl;
@@ -260,6 +281,7 @@ void mainRun(const std::string &inputFileName,
       auto start = std::chrono::high_resolution_clock::now();
       clueAlgoByTile.makeClusters();
       auto finish = std::chrono::high_resolution_clock::now();
+      clueAlgoByTile.Sync();
       std::chrono::duration<double> elapsed = finish - start;
       std::cout << "Iteration " << r;
       std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
@@ -312,9 +334,9 @@ void mainRun(const std::string &inputFileName,
  #endif
    } else {
 
-    readDataFromFile(inputFileName, x, y, layer, weight, gpuId, capacity, use_accelerator, size);
+    // readDataFromFile(inputFileName, x, y, layer, weight, gpuId, capacity, use_accelerator, size);
 
-    allocateOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator, size);
+    // allocateOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator, size);
 
     std::cout << "Native CPU(serial) Backend selected" << std::endl;
     CLUEAlgo<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor,
@@ -343,6 +365,8 @@ void mainRun(const std::string &inputFileName,
     if (verbose)
       clueAlgo.verboseResults(outputFileName, -1);
   }
+
+  outfile.close();
 
   std::cout << "Finished running CLUE algorithm" << std::endl;
 }  // end of testRun()

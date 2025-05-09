@@ -62,6 +62,8 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
   // public methods
   void makeClusters();  // overwrite base class
 
+  void Sync();
+
   // Bring base-class public variables into the scope of this template derived
   // class
   using CLUEAlgo<T, NLAYERS>::dc_;
@@ -504,34 +506,34 @@ void CLUEAlgoGPU<T, NLAYERS, W>::makeClusters() {
   // 1 point per thread
   ////////////////////////////////////////////
   const dim3 blockSize(64, 1, 1);
-  const dim3 gridSize(ceil(points_gpu.n / static_cast<float>(blockSize.x)), 1, 1);
+  const dim3 gridSize(ceil(points_.n / static_cast<float>(blockSize.x)), 1, 1);
   kernel_compute_histogram<T>
-      <<<gridSize, blockSize>>>(d_hist, points_gpu, points_gpu.n);
+      <<<gridSize, blockSize, 0, stream_>>>(d_hist, points_gpu, points_.n);
 
   if constexpr (std::is_same_v<W, WorkDivByPoints>) {
     kernel_calculate_density<T>
-      <<<gridSize, blockSize>>>(d_hist, points_gpu, dc_, points_gpu.n);
-    kernel_calculate_distanceToHigher<T><<<gridSize, blockSize>>>(
-        d_hist, points_gpu, outlierDeltaFactor_, dc_, points_gpu.n);
+      <<<gridSize, blockSize, 0, stream_>>>(d_hist, points_gpu, dc_, points_.n);
+    kernel_calculate_distanceToHigher<T><<<gridSize, blockSize, 0, stream_>>>(
+        d_hist, points_gpu, outlierDeltaFactor_, dc_, points_.n);
   }
 
   if constexpr (std::is_same_v<W, WorkDivByTile>) {
     const dim3 gridSizeTile(T::nTiles, NLAYERS, 1);
     const dim3 blockSizeTile(T::maxTileDepth, 1, 1);
     kernel_calculate_densityTile<T>
-      <<<gridSizeTile, blockSizeTile>>>(d_hist, points_gpu, dc_, points_gpu.n);
-    kernel_calculate_distanceToHigherTile<T><<<gridSizeTile, blockSizeTile>>>(
-        d_hist, points_gpu, outlierDeltaFactor_, dc_, points_gpu.n);
+      <<<gridSizeTile, blockSizeTile, 0, stream_>>>(d_hist, points_gpu, dc_, points_.n);
+    kernel_calculate_distanceToHigherTile<T><<<gridSizeTile, blockSizeTile, 0, stream_>>>(
+        d_hist, points_gpu, outlierDeltaFactor_, dc_, points_.n);
   }
 
   if (!useAbsoluteSigma_) {
-    kernel_find_clusters<<<gridSize, blockSize>>>(d_seeds, d_followers, points_gpu,
+    kernel_find_clusters<<<gridSize, blockSize, 0, stream_>>>(d_seeds, d_followers, points_gpu,
                                                   outlierDeltaFactor_, dc_, rhoc_,
-                                                  points_gpu.n);
+                                                  points_.n);
   } else {
-    kernel_find_clusters_kappa<<<gridSize, blockSize>>>(d_seeds, d_followers, points_gpu,
+    kernel_find_clusters_kappa<<<gridSize, blockSize, 0, stream_>>>(d_seeds, d_followers, points_gpu,
                                                         outlierDeltaFactor_, dc_, kappa_,
-                                                        points_gpu.n);
+                                                        points_.n);
   }
 
   ////////////////////////////////////////////
@@ -539,11 +541,18 @@ void CLUEAlgoGPU<T, NLAYERS, W>::makeClusters() {
   // 1 point per seeds
   ////////////////////////////////////////////
   const dim3 gridSize_nseeds(ceil(maxNSeeds / 1024.0), 1, 1);
-  kernel_assign_clusters<<<gridSize_nseeds, blockSize>>>(
-      d_seeds, d_followers, points_gpu, points_gpu.n);
+  kernel_assign_clusters<<<gridSize_nseeds, blockSize, 0, stream_>>>(
+      d_seeds, d_followers, points_gpu, points_.n);
 
   copy_tohost();
-  CHECK_CUDA_ERROR(cudaDeviceSynchronize()); 
+  ///
+  }
+
+
+template <typename T, int NLAYERS, typename W>
+void CLUEAlgoGPU<T, NLAYERS, W>::Sync() {
+  CHECK_CUDA_ERROR(cudaStreamSynchronize(stream_));
 }
+
 
 #endif
