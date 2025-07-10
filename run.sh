@@ -2,7 +2,7 @@
 
 rm -rf build
 
-cd /data/cmssw/el8_amd64_gcc12/cms/cmssw/CMSSW_15_0_0_pre2
+cd /data/cmssw/el8_amd64_gcc12/cms/cmssw/CMSSW_15_0_6
 eval `scram runtime -sh`
 CUDA_BASE=$(scram tool tag cuda CUDA_BASE)
 TBB_BASE=$(scram tool tag tbb TBB_BASE)

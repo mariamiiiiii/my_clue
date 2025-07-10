@@ -55,6 +55,7 @@ pair<float, float> stats(const std::vector<float> &v) {
 }
 
 void printTimingReport(std::vector<float> &vals, int repeats,
+                       std::vector<std::pair<std::string, double>> &timings,
                        const std::string label = "SUMMARY ") {
   int precision = 2;
   float mean = 0.f;
@@ -69,6 +70,11 @@ void printTimingReport(std::vector<float> &vals, int repeats,
   std::cout << label << " 2 outliers(" << repeats << "/" << vals.size() << ") "
             << std::fixed << std::setprecision(precision) << mean << " +/- "
             << sigma << " [ms]" << std::endl;
+
+  if (label == "SUMMARY WorkDivByPoints:") {
+    
+    timings.emplace_back("KernelExecutionMean", mean);
+  }     
 }
 
 //another function same but for output, also allocate output with correct size
@@ -193,10 +199,9 @@ void mainRun(const std::string &inputFileName,
   // read toy data from csv file
   //////////////////////////////
 
-  std::ofstream outfile("Results", std::ios::trunc);
-  outfile << "Measurements results" << std::endl << std::endl;
-
   std::cout << "Start to load input points" << std::endl;
+
+  std::vector<std::pair<std::string, double>> timings;
 
   // Allocate memory
   unsigned int capacity = 1000000;
@@ -228,9 +233,9 @@ void mainRun(const std::string &inputFileName,
 
   auto end = std::chrono::high_resolution_clock::now();
 
-  //std::chrono::duration<double> s = end - begin;
-  std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
-  outfile << "Chrono time: " << ms.count() << " ms\n" << std::endl;
+  double time_read = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+
+  timings.emplace_back("readDataFromFile", time_read);
     
   allocateOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator, size);
 
@@ -263,10 +268,18 @@ void mainRun(const std::string &inputFileName,
       }
     }
 
-    printTimingReport(vals, repeats, "SUMMARY WorkDivByPoints:");
+    printTimingReport(vals, repeats, timings, "SUMMARY WorkDivByPoints:");
+
+    auto begin = std::chrono::high_resolution_clock::now();
 
     // output result to outputFileName. -1 means all points.
     clueAlgo.verboseResults(outputFileName, -1);
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    double time_write = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+
+    timings.emplace_back("writeDataToFile", time_write);
 
     std::cout << "Native CUDA Backend selected WorkDivByTile" << std::endl;
     CLUEAlgoGPU<TilesConstants, NLAYERS, WorkDivByTile> clueAlgoByTile(dc, rhoc, outlierDeltaFactor, verbose, size, x, y, layer, weight, 
@@ -291,9 +304,7 @@ void mainRun(const std::string &inputFileName,
       }
     }
 
-    printTimingReport(vals, repeats, "SUMMARY WorkDivByTile:");
-
-    
+    printTimingReport(vals, repeats, timings, "SUMMARY WorkDivByTile:");
 
     // output result to outputFileName. -1 means all points.
     clueAlgoByTile.verboseResults(outputFileName, -1);
@@ -327,7 +338,7 @@ void mainRun(const std::string &inputFileName,
 //       }
 //     }
 
-//     printTimingReport(vals, repeats, "SUMMARY Alpaka Backend:");
+//     printTimingReport(vals, repeats, timings, "SUMMARY Alpaka Backend:");
 
 //     // output result to outputFileName. -1 means all points.
 //     clueAlgo.verboseResults(outputFileName, -1);
@@ -360,13 +371,24 @@ void mainRun(const std::string &inputFileName,
       }
     }
 
-    printTimingReport(vals, repeats, "SUMMARY Native CPU:");
+    printTimingReport(vals, repeats, timings, "SUMMARY Native CPU:");
     // output result to outputFileName. -1 means all points.
     if (verbose)
       clueAlgo.verboseResults(outputFileName, -1);
   }
 
-  outfile.close();
+  std::ofstream results("results_unified.csv");
+  if (!results.is_open()) {
+    std::cerr << "Failed to open file.\n";
+    return;
+  }
+
+  results << "Operation,Time\n";
+  for (const auto& entry : timings) {
+      results << entry.first << "," << entry.second << "\n";
+  }
+
+  results.close();
 
   std::cout << "Finished running CLUE algorithm" << std::endl;
 }  // end of testRun()
