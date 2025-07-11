@@ -21,11 +21,22 @@ index = range(len(df))
 
 plt.figure(figsize=(10, 6))
 
-# Plot Classic
-plt.bar(index, df['Time_Classic'], bar_width, label='Classic', color='steelblue')
+# Plot Classic bars
+bars_classic = plt.bar(index, df['Time_Classic'], bar_width, label='Classic', color='steelblue')
 
-# Plot Unified
-plt.bar([i + bar_width for i in index], df['Time_Unified'], bar_width, label='Unified Memory', color='darkorange')
+# Plot Unified bars
+bars_unified = plt.bar([i + bar_width for i in index], df['Time_Unified'], bar_width, label='Unified Memory', color='darkorange')
+
+# Add value labels on top of each bar
+for bar in bars_classic:
+    yval = bar.get_height()
+    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
+    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
+
+for bar in bars_unified:
+    yval = bar.get_height()
+    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
+    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
 
 # Labels and ticks
 plt.xlabel('Operation')
