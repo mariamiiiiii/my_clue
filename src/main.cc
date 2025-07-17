@@ -10,12 +10,20 @@
 #include <string>
 
 #include "CLUEAlgo.h"
-#include "CUDAEssentials.h"
+//#include "CLUEAlgoGPU.h" 
 
 #if defined(USE_ALPAKA)
 #include "CLUEAlgoAlpaka.h"
 #else
-#include "CLUEAlgoGPU.h"
+// #include "CLUEAlgoGPU.h"
+#  if defined(__CUDACC__)
+#    include "CLUEAlgoGPU.h"   
+#  elif defined(__HIP_PLATFORM_AMD__)
+#    include "CLUEAlgoGPUHip.h"
+#  else
+#    error "Neither CUDA nor HIP compiler detected — build is CPU-only."
+#  endif
+
 #endif
 
 #ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_ENABLED
@@ -98,7 +106,7 @@ void allocateInputData(float* &x, float* &y, int* &layer, float* &weight, int ca
   }
 }
 
-void readDataFromFile(const std::string &inputFileName, float* &x, float* &y, int* &layer, float* &weight, int capacity, int &size) {
+void readDataFromFile(const std::string &inputFileName, float* x, float* y, int* layer, float* weight, int capacity, int &size) {
 
       
   int i = 0;
@@ -151,9 +159,9 @@ void allocateOutputData (float* &rho, float* &delta, unsigned int* &nearestHighe
   }
 }
 
-void free(float* &x, float* &y, int* &layer, float* &weight, float* &rho, float* &delta, unsigned int* &nearestHigher, int* &clusterIndex, uint8_t* &isSeed) {
+void free(float* x, float* y, int* layer, float* weight, float* rho, float* delta, unsigned int* nearestHigher, int* clusterIndex, uint8_t* isSeed) {
   // input variables
-  CHECK_CUDA_ERROR(cudaFree(x));
+  /*CHECK_CUDA_ERROR*/(cudaFree(x));
   CHECK_CUDA_ERROR(cudaFree(y));
   CHECK_CUDA_ERROR(cudaFree(layer));
   CHECK_CUDA_ERROR(cudaFree(weight));

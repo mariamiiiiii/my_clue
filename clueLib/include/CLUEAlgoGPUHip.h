@@ -1,3 +1,8 @@
+// -------- 1. bring in the HIP runtime --------------------------------------
+// -------- 2. map the CUDA symbols used in the code to HIP ------------------
+// -------- 3. keep the existing error macro but rename it -------------------
+// -------- 4. pull in the body that still uses CUDA names -------------------
+
 #ifndef CLUEAlgoGPU_h
 #define CLUEAlgoGPU_h
 #include <math.h>
@@ -6,8 +11,7 @@
 #include <limits>
 
 // GPU Add
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include <hip/hip_runtime.h>
 // for timing
 #include <chrono>
 #include <ctime>
@@ -15,16 +19,16 @@
 #include "CLUEAlgo.h"
 #include "TilesGPU.h"
 
-#define CHECK_CUDA_ERROR(val) check((val), #val, __FILE__, __LINE__)
+#define CHECK_HIP_ERROR(val) check((val), #val, __FILE__, __LINE__)
 template <typename T>
-void check(T err, const char *const func, const char *const file,
-           const int line) {
-  if (err != cudaSuccess) {
-    std::cerr << "CUDA Runtime Error at: " << file << ":" << line << std::endl;
-    std::cerr << cudaGetErrorString(err) << " " << func << std::endl;
-
-    std::exit(EXIT_FAILURE);
-  }
+inline void check(T err, const char* func, const char* file, int line)
+{
+    if (err != hipSuccess)
+    {
+        std::cerr << "HIP Runtime Error at: " << file << ":" << line << "\n"
+                  << hipGetErrorString(err) << " " << func << std::endl;
+        std::exit(EXIT_FAILURE);
+    }Y
 }
 
 class WorkDivByPoints;
@@ -88,7 +92,7 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
  private:
   // private variables
   
-  cudaStream_t stream_;
+  hipStream_t stream_;
   // algorithm internal variables
   PointsPtr points_gpu;
   TilesGPU<T> *d_hist;
@@ -98,8 +102,8 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
   // private methods
   void init_device(int n, float* x, float* y, int* layer, float* weight,
         float* rho, float* delta, unsigned int* nearestHigher, int* clusterIndex, uint8_t* isSeed) {
-    // Create our own cuda stream
-    CHECK_CUDA_ERROR(cudaStreamCreate(&stream_));
+    // Create our own hip stream
+    CHECK_HIP_ERROR(hipStreamCreate(&stream_));
     // Allocate memory
     //unsigned int reserve = 10000;
 
@@ -116,77 +120,76 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
     points_gpu.isSeed = isSeed; //for output
 
     // algorithm internal variables
-    CHECK_CUDA_ERROR(
-      cudaMallocAsync(&d_hist, sizeof(TilesGPU<T>) * NLAYERS, stream_));
-    CHECK_CUDA_ERROR(cudaMallocAsync(
+    CHECK_HIP_ERROR(
+      hipMallocAsync(&d_hist, sizeof(TilesGPU<T>) * NLAYERS, stream_));
+    CHECK_HIP_ERROR(hipMallocAsync(
         &d_seeds, sizeof(GPU::VecArray<int, maxNSeeds>), stream_));
-    CHECK_CUDA_ERROR(cudaMallocAsync(
+    CHECK_HIP_ERROR(hipMallocAsync(
         &d_followers, sizeof(GPU::VecArray<int, maxNFollowers>) * points_gpu.n,
         stream_));
   }
 
   void free_device() {
     // algorithm internal variables
-    CHECK_CUDA_ERROR(cudaFreeAsync(d_hist, stream_));
-    CHECK_CUDA_ERROR(cudaFreeAsync(d_seeds, stream_));
-    CHECK_CUDA_ERROR(cudaFreeAsync(d_followers, stream_));
+    CHECK_HIP_ERROR(hipFreeAsync(d_hist, stream_));
+    CHECK_HIP_ERROR(hipFreeAsync(d_seeds, stream_));
+    CHECK_HIP_ERROR(hipFreeAsync(d_followers, stream_));
 
-    CHECK_CUDA_ERROR(cudaStreamDestroy(stream_));
+    CHECK_HIP_ERROR(hipStreamDestroy(stream_));
   }
 
   void copy_todevice() {
     int gpuId;
-    cudaGetDevice(&gpuId);
+    hipGetDevice(&gpuId);
 
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.x, sizeof(float) * points_gpu.n, gpuId, stream_));
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.y, sizeof(float) * points_gpu.n, gpuId, stream_));
-    CHECK_CUDA_ERROR(         
-      cudaMemPrefetchAsync(points_gpu.layer, sizeof(int) * points_gpu.n, gpuId, stream_));
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.weight, sizeof(float) * points_gpu.n, gpuId, stream_)); 
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.x, sizeof(float) * points_gpu.n, gpuId, stream_));
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.y, sizeof(float) * points_gpu.n, gpuId, stream_));
+    CHECK_HIP_ERROR(         
+      hipMemPrefetchAsync(points_gpu.layer, sizeof(int) * points_gpu.n, gpuId, stream_));
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.weight, sizeof(float) * points_gpu.n, gpuId, stream_)); 
     if (useAbsoluteSigma_)
-      CHECK_CUDA_ERROR(
-        cudaMemPrefetchAsync(points_gpu.sigmaNoise, sizeof(float) * points_gpu.n, gpuId, stream_));
+      CHECK_HIP_ERROR(
+        hipMemPrefetchAsync(points_gpu.sigmaNoise, sizeof(float) * points_gpu.n, gpuId, stream_));
   } 
 
   void clear_internal_buffers() {
     // result variables
-    CHECK_CUDA_ERROR(cudaMemsetAsync(points_gpu.rho, 0x00,
+    CHECK_HIP_ERROR(hipMemPrefetchAsync(points_gpu.rho, 0x00,
                                      sizeof(float) * points_gpu.n, stream_));
-    CHECK_CUDA_ERROR(cudaMemsetAsync(points_gpu.delta, 0x00,
+    CHECK_HIP_ERROR(hipMemPrefetchAsync(points_gpu.delta, 0x00,
                                      sizeof(float) * points_gpu.n, stream_));
-    CHECK_CUDA_ERROR(cudaMemsetAsync(points_gpu.nearestHigher, 0x00,
+    CHECK_HIP_ERROR(hipMemPrefetchAsync(points_gpu.nearestHigher, 0x00,
                                      sizeof(int) * points_gpu.n, stream_));
-    CHECK_CUDA_ERROR(cudaMemsetAsync(points_gpu.clusterIndex, 0x00,
+    CHECK_HIP_ERROR(hipMemPrefetchAsync(points_gpu.clusterIndex, 0x00,
                                      sizeof(int) * points_gpu.n, stream_));
-    CHECK_CUDA_ERROR(cudaMemsetAsync(points_gpu.isSeed, 0x00,
+    CHECK_HIP_ERROR(hipMemPrefetchAsync(points_gpu.isSeed, 0x00,
                                      sizeof(uint8_t) * points_gpu.n, stream_));
     //algorithm internal variables
-  CHECK_CUDA_ERROR(
-    cudaMemsetAsync(d_hist, 0x00, sizeof(TilesGPU<T>) * NLAYERS, stream_));
-  CHECK_CUDA_ERROR(
-    cudaMemsetAsync(d_seeds, 0x00, sizeof(GPU::VecArray<int, maxNSeeds>), stream_));
-  CHECK_CUDA_ERROR(
-    cudaMemsetAsync(d_followers, 0x00, sizeof(GPU::VecArray<int, maxNFollowers>) * points_gpu.n, stream_));
+  CHECK_HIP_ERROR(
+    hipMemPrefetchAsync(d_hist, 0x00, sizeof(TilesGPU<T>) * NLAYERS, stream_));
+  CHECK_HIP_ERROR(
+    hipMemPrefetchAsync(d_seeds, 0x00, sizeof(GPU::VecArray<int, maxNSeeds>), stream_));
+  CHECK_HIP_ERROR(
+    hipMemPrefetchAsync(d_followers, 0x00, sizeof(GPU::VecArray<int, maxNFollowers>) * points_gpu.n, stream_));
   }
 
   void copy_tohost() {
     //prefetch just for the output
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.rho, sizeof(float) * points_gpu.n, cudaCpuDeviceId, stream_));
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.delta, sizeof(float) * points_gpu.n, cudaCpuDeviceId, stream_));
-    CHECK_CUDA_ERROR(         
-      cudaMemPrefetchAsync(points_gpu.nearestHigher, sizeof(int) * points_gpu.n, cudaCpuDeviceId, stream_));
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.clusterIndex, sizeof(int) * points_gpu.n, cudaCpuDeviceId, stream_)); 
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.isSeed, sizeof(uint8_t) * points_gpu.n, cudaCpuDeviceId, stream_));
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.rho, sizeof(float) * points_gpu.n, hipCpuDeviceId, stream_));
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.delta, sizeof(float) * points_gpu.n, hipCpuDeviceId, stream_));
+    CHECK_HIP_ERROR(         
+      hipMemPrefetchAsync(points_gpu.nearestHigher, sizeof(int) * points_gpu.n, hipCpuDeviceId, stream_));
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.clusterIndex, sizeof(int) * points_gpu.n, hipCpuDeviceId, stream_)); 
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.isSeed, sizeof(uint8_t) * points_gpu.n, hipCpuDeviceId, stream_));
   }
 
-  //#endif // __CUDACC__
 };
 
 template <typename T>
@@ -562,7 +565,7 @@ void CLUEAlgoGPU<T, NLAYERS, W>::makeClusters() {
 
 template <typename T, int NLAYERS, typename W>
 void CLUEAlgoGPU<T, NLAYERS, W>::Sync() {
-  CHECK_CUDA_ERROR(cudaStreamSynchronize(stream_));
+  CHECK_HIP_ERROR(hipStreamSynchronize(stream_));
 }
 
 
