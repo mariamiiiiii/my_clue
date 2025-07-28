@@ -238,11 +238,8 @@ void mainRun(const std::string &inputFileName,
              const bool use_accelerator, const int repeats,
              const bool verbose, char* argv[]) {
 
-  //float alloc_input[10], read[10], alloc_output[10], write[10], free_input[10], free_output[10];
+    CHECK_CUDA_ERROR(cudaFree(nullptr));   
 
-  //for (unsigned i = 0; i < 10; i++) {
-
-    CHECK_CUDA_ERROR(cudaFree(nullptr));            
     //////////////////////////////
     // read toy data from csv file
     //////////////////////////////
@@ -317,7 +314,6 @@ void mainRun(const std::string &inputFileName,
     //////////////////////////////
     std::cout << "Start to run CLUE algorithm" << std::endl;
     if (use_accelerator) {
-
   #if !defined(USE_ALPAKA)
       std::cout << "Native CUDA Backend selected" << std::endl;
       CLUEAlgoGPU<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor, verbose, size, x, y, layer, weight, 
@@ -404,7 +400,6 @@ void mainRun(const std::string &inputFileName,
       printTimingReport(vals4, repeats, timings, "SUMMARY WorkDivByPoints execution make_clusters times:");
       printTimingReport(vals5, repeats, timings, "SUMMARY WorkDivByPoints submission copy_to_host times:");
       printTimingReport(vals6, repeats, timings, "SUMMARY WorkDivByPoints execution copy_to_host times:");
-
 
       begin = std::chrono::high_resolution_clock::now();
 
@@ -504,9 +499,7 @@ void mainRun(const std::string &inputFileName,
                                                 verbose);
 
       vals.clear();
-      for (int r = 0; r < repeats; r++) {
-        // if (!clueAlgo.copyInputPoints(size, x, y, layer, weight))
-        //   exit(EXIT_FAILURE);  
+      for (int r = 0; r < repeats; r++) { 
         clueAlgo.setInputPoints(size, x, y, layer, weight);
         clueAlgo.setOutputPoints(size, rho, delta, nearestHigher, clusterIndex, isSeed);
         // measure excution time of makeClusters
@@ -546,7 +539,6 @@ void mainRun(const std::string &inputFileName,
     std::cout << "Finished running CLUE algorithm" << std::endl;
   //}
 }  // end of testRun()
-             
 
 int main(int argc, char *argv[]) {
   //////////////////////////////
