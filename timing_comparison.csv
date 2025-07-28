@@ -1,4 +1,0 @@
-Operation,Time_Classic,Time_Unified
-readDataFromFile,58.0,43.0
-KernelExecutionMean,0.0516326,0.0693759
-writeDataToFile,150.0,149.0

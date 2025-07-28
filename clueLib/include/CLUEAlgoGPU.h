@@ -59,6 +59,37 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
   // destructor
   ~CLUEAlgoGPU() { free_device(); }
 
+  void copy_todevice() {
+    int gpuId;
+    cudaGetDevice(&gpuId);
+
+    CHECK_CUDA_ERROR(
+      cudaMemPrefetchAsync(points_gpu.x, sizeof(float) * points_gpu.n, gpuId, stream_));
+    CHECK_CUDA_ERROR(
+      cudaMemPrefetchAsync(points_gpu.y, sizeof(float) * points_gpu.n, gpuId, stream_));
+    CHECK_CUDA_ERROR(         
+      cudaMemPrefetchAsync(points_gpu.layer, sizeof(int) * points_gpu.n, gpuId, stream_));
+    CHECK_CUDA_ERROR(
+      cudaMemPrefetchAsync(points_gpu.weight, sizeof(float) * points_gpu.n, gpuId, stream_)); 
+    if (useAbsoluteSigma_)
+      CHECK_CUDA_ERROR(
+        cudaMemPrefetchAsync(points_gpu.sigmaNoise, sizeof(float) * points_gpu.n, gpuId, stream_));
+  } 
+
+  void copy_tohost() {
+    //prefetch just for the output
+    CHECK_CUDA_ERROR(
+      cudaMemPrefetchAsync(points_gpu.rho, sizeof(float) * points_gpu.n, cudaCpuDeviceId, stream_));
+    CHECK_CUDA_ERROR(
+      cudaMemPrefetchAsync(points_gpu.delta, sizeof(float) * points_gpu.n, cudaCpuDeviceId, stream_));
+    CHECK_CUDA_ERROR(         
+      cudaMemPrefetchAsync(points_gpu.nearestHigher, sizeof(int) * points_gpu.n, cudaCpuDeviceId, stream_));
+    CHECK_CUDA_ERROR(
+      cudaMemPrefetchAsync(points_gpu.clusterIndex, sizeof(int) * points_gpu.n, cudaCpuDeviceId, stream_)); 
+    CHECK_CUDA_ERROR(
+      cudaMemPrefetchAsync(points_gpu.isSeed, sizeof(uint8_t) * points_gpu.n, cudaCpuDeviceId, stream_));
+  }
+
   // public methods
   void makeClusters();  // overwrite base class
 
@@ -89,8 +120,6 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
         float* rho, float* delta, unsigned int* nearestHigher, int* clusterIndex, uint8_t* isSeed) {
     // Create our own cuda stream
     CHECK_CUDA_ERROR(cudaStreamCreate(&stream_));
-    // Allocate memory
-    //unsigned int reserve = 10000;
 
     points_gpu.x = x; 
     points_gpu.y = y;
@@ -115,30 +144,12 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
   }
 
   void free_device() {
-    // algorithm internal variables
     CHECK_CUDA_ERROR(cudaFreeAsync(d_hist, stream_));
     CHECK_CUDA_ERROR(cudaFreeAsync(d_seeds, stream_));
     CHECK_CUDA_ERROR(cudaFreeAsync(d_followers, stream_));
 
     CHECK_CUDA_ERROR(cudaStreamDestroy(stream_));
   }
-
-  void copy_todevice() {
-    int gpuId;
-    cudaGetDevice(&gpuId);
-
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.x, sizeof(float) * points_gpu.n, gpuId, stream_));
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.y, sizeof(float) * points_gpu.n, gpuId, stream_));
-    CHECK_CUDA_ERROR(         
-      cudaMemPrefetchAsync(points_gpu.layer, sizeof(int) * points_gpu.n, gpuId, stream_));
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.weight, sizeof(float) * points_gpu.n, gpuId, stream_)); 
-    if (useAbsoluteSigma_)
-      CHECK_CUDA_ERROR(
-        cudaMemPrefetchAsync(points_gpu.sigmaNoise, sizeof(float) * points_gpu.n, gpuId, stream_));
-  } 
 
   void clear_internal_buffers() {
     // result variables
@@ -159,20 +170,6 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
     cudaMemsetAsync(d_seeds, 0x00, sizeof(GPU::VecArray<int, maxNSeeds>), stream_));
   CHECK_CUDA_ERROR(
     cudaMemsetAsync(d_followers, 0x00, sizeof(GPU::VecArray<int, maxNFollowers>) * points_gpu.n, stream_));
-  }
-
-  void copy_tohost() {
-    //prefetch just for the output
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.rho, sizeof(float) * points_gpu.n, cudaCpuDeviceId, stream_));
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.delta, sizeof(float) * points_gpu.n, cudaCpuDeviceId, stream_));
-    CHECK_CUDA_ERROR(         
-      cudaMemPrefetchAsync(points_gpu.nearestHigher, sizeof(int) * points_gpu.n, cudaCpuDeviceId, stream_));
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.clusterIndex, sizeof(int) * points_gpu.n, cudaCpuDeviceId, stream_)); 
-    CHECK_CUDA_ERROR(
-      cudaMemPrefetchAsync(points_gpu.isSeed, sizeof(uint8_t) * points_gpu.n, cudaCpuDeviceId, stream_));
   }
 
   //#endif // __CUDACC__
@@ -498,7 +495,7 @@ __global__ void kernel_assign_clusters(
 
 template <typename T, int NLAYERS, typename W>
 void CLUEAlgoGPU<T, NLAYERS, W>::makeClusters() {
-  copy_todevice();
+  //copy_todevice();
   clear_internal_buffers();
 
   ////////////////////////////////////////////
@@ -544,7 +541,7 @@ void CLUEAlgoGPU<T, NLAYERS, W>::makeClusters() {
   kernel_assign_clusters<<<gridSize_nseeds, blockSize, 0, stream_>>>(
       d_seeds, d_followers, points_gpu, points_.n);
 
-  copy_tohost();
+  //copy_tohost();
   ///
   }
 
