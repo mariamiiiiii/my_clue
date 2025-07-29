@@ -1,9 +1,9 @@
 Operation,Time_Classic,Time_Unified
-readDataFromFile,40.058800000000005,30.20217
-allocateInputData,0.8258257,0.0623873999999999
-allocateOutputData,2.667952,0.0323868
-kernelExecutionMean,1.308608,0.06798189
-kernelSubmissionMean,1.30995,1.899777
-writeDataToFile,83.14268,101.77292
-freeInputData,0.0773474,0.4008220999999999
-freeOutputData,0.1538831,0.1622458
+readDataFromFile,39.29165,30.279290000000003
+allocateInputData,0.8162483999999999,0.0640364
+allocateOutputData,2.838871,0.0321936
+kernelSubmissionMean,1.304596,0.07023529
+kernelExecutionMean,1.30595,1.853703
+writeDataToFile,79.37029,78.66837000000001
+freeInputData,0.0643662,0.3310239
+freeOutputData,0.1184547,0.1320151

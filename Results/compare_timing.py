@@ -93,7 +93,7 @@ plt.ylabel('Time (ms)')
 plt.title('Performance Comparison: Classic vs Unified Memory')
 plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
 plt.legend()
-# plt.yscale('log') # logarithmic scale
+#plt.yscale('log') # logarithmic scale
 plt.tight_layout()
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.savefig("Results/mean_comparison.png")
