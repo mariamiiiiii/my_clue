@@ -18,10 +18,10 @@
 // #include "CLUEAlgoGPU.h"
 #  if defined(__CUDACC__)
 #    include "CLUEAlgoGPU.h"   
-#  elif defined(__HIP_PLATFORM_AMD__)
+#  elif defined(__HIPCC__) || defined(__HIP_PLATFORM_AMD__) || defined(__HIP_PLATFORM_NVIDIA__)
 #    include "CLUEAlgoGPUHip.h"
 #  else
-#    error "Neither CUDA nor HIP compiler detected — build is CPU-only."
+#    error "Neither CUDA nor HIP compiler detected"
 #  endif
 
 #endif
@@ -79,10 +79,12 @@ void printTimingReport(std::vector<float> &vals, int repeats,
             << std::fixed << std::setprecision(precision) << mean << " +/- "
             << sigma << " [ms]" << std::endl;
 
-  if (label == "SUMMARY WorkDivByPoints:") {
-    
-    timings.emplace_back("KernelExecutionMean", mean);
+  if (label == "SUMMARY WorkDivByPoints submission times:") {
+    timings.emplace_back("kernelSubmissionMean", mean);
   }     
+  else if (label == "SUMMARY WorkDivByPoints execution times:") {
+    timings.emplace_back("kernelExecutionMean", mean);
+  }
 }
 
 //another function same but for output, also allocate output with correct size
@@ -91,11 +93,11 @@ void allocateInputData(float* &x, float* &y, int* &layer, float* &weight, int ca
 
   if (use_accelerator) {
     #if !defined(USE_ALPAKA) 
-      // Allocate CUDA-managed memory
-      CHECK_CUDA_ERROR(cudaMallocManaged(&x, capacity * sizeof(float)));
-      CHECK_CUDA_ERROR(cudaMallocManaged(&y, capacity * sizeof(float)));
-      CHECK_CUDA_ERROR(cudaMallocManaged(&layer, capacity * sizeof(int)));
-      CHECK_CUDA_ERROR(cudaMallocManaged(&weight, capacity * sizeof(float)));
+      // Allocate HIP-managed memory
+      CHECK_HIP_ERROR(hipMallocManaged(&x, capacity * sizeof(float)));
+      CHECK_HIP_ERROR(hipMallocManaged(&y, capacity * sizeof(float)));
+      CHECK_HIP_ERROR(hipMallocManaged(&layer, capacity * sizeof(int)));
+      CHECK_HIP_ERROR(hipMallocManaged(&weight, capacity * sizeof(float)));
     #endif
   }
   else {
@@ -141,12 +143,12 @@ void readDataFromFile(const std::string &inputFileName, float* x, float* y, int*
 void allocateOutputData (float* &rho, float* &delta, unsigned int* &nearestHigher, int* &clusterIndex, uint8_t* &isSeed, bool use_accelerator, int size) {
   if (use_accelerator) {
     #if !defined(USE_ALPAKA) 
-      // Allocate CUDA-managed memory
-      CHECK_CUDA_ERROR(cudaMallocManaged(&rho, size * sizeof(float)));
-      CHECK_CUDA_ERROR(cudaMallocManaged(&delta, size * sizeof(float)));
-      CHECK_CUDA_ERROR(cudaMallocManaged(&nearestHigher, size * sizeof(int)));
-      CHECK_CUDA_ERROR(cudaMallocManaged(&clusterIndex, size * sizeof(int)));
-      CHECK_CUDA_ERROR(cudaMallocManaged(&isSeed, size * sizeof(uint8_t)));
+      // Allocate HIP-managed memory
+      CHECK_HIP_ERROR(hipMallocManaged(&rho, size * sizeof(float)));
+      CHECK_HIP_ERROR(hipMallocManaged(&delta, size * sizeof(float)));
+      CHECK_HIP_ERROR(hipMallocManaged(&nearestHigher, size * sizeof(int)));
+      CHECK_HIP_ERROR(hipMallocManaged(&clusterIndex, size * sizeof(int)));
+      CHECK_HIP_ERROR(hipMallocManaged(&isSeed, size * sizeof(uint8_t)));
 
     #endif
   }
@@ -159,18 +161,41 @@ void allocateOutputData (float* &rho, float* &delta, unsigned int* &nearestHighe
   }
 }
 
-void free(float* x, float* y, int* layer, float* weight, float* rho, float* delta, unsigned int* nearestHigher, int* clusterIndex, uint8_t* isSeed) {
-  // input variables
-  /*CHECK_CUDA_ERROR*/(cudaFree(x));
-  CHECK_CUDA_ERROR(cudaFree(y));
-  CHECK_CUDA_ERROR(cudaFree(layer));
-  CHECK_CUDA_ERROR(cudaFree(weight));
-  // result variables
-  CHECK_CUDA_ERROR(cudaFree(rho));
-  CHECK_CUDA_ERROR(cudaFree(delta));
-  CHECK_CUDA_ERROR(cudaFree(nearestHigher));
-  CHECK_CUDA_ERROR(cudaFree(clusterIndex));
-  CHECK_CUDA_ERROR(cudaFree(isSeed));
+
+void freeInputData(float* &x, float* &y, int* &layer, float* &weight, bool use_accelerator) {
+  if (use_accelerator) {
+    #if !defined(USE_ALPAKA) 
+      CHECK_HIP_ERROR(hipFree(x));
+      CHECK_HIP_ERROR(hipFree(y));
+      CHECK_HIP_ERROR(hipFree(layer));
+      CHECK_HIP_ERROR(hipFree(weight));
+    #endif
+  }
+  else{
+    delete[] x;
+    delete[] y;
+    delete[] layer;
+    delete[] weight;
+  }
+}
+
+void freeOutputData(float* &rho, float* &delta, unsigned int* &nearestHigher, int* &clusterIndex, uint8_t* &isSeed, bool use_accelerator) {
+  if (use_accelerator) {
+    #if !defined(USE_ALPAKA) 
+      CHECK_HIP_ERROR(hipFree(rho));
+      CHECK_HIP_ERROR(hipFree(delta));
+      CHECK_HIP_ERROR(hipFree(nearestHigher));
+      CHECK_HIP_ERROR(hipFree(clusterIndex));
+      CHECK_HIP_ERROR(hipFree(isSeed));
+    #endif
+  }
+  else{
+    delete[] rho;
+    delete[] delta;
+    delete[] nearestHigher;
+    delete[] clusterIndex;
+    delete[] isSeed;
+  }
 }
 
 std::string create_outputfileName(const std::string &inputFileName,
@@ -200,9 +225,9 @@ void mainRun(const std::string &inputFileName,
              const std::string &outputFileName, const float dc,
              const float rhoc, const float outlierDeltaFactor,
              const bool use_accelerator, const int repeats,
-             const bool verbose) {
+             const bool verbose, char* argv[]) {
 
-  cudaFree(nullptr);            
+  CHECK_HIP_ERROR(hipFree(nullptr));            
   //////////////////////////////
   // read toy data from csv file
   //////////////////////////////
@@ -216,7 +241,7 @@ void mainRun(const std::string &inputFileName,
   int size;
 
   int gpuId;
-  cudaGetDevice(&gpuId);
+  CHECK_HIP_ERROR(hipGetDevice(&gpuId));
 
   float* x = nullptr;
   float* y = nullptr;
@@ -232,130 +257,110 @@ void mainRun(const std::string &inputFileName,
   std::cout << "Finished loading input points" << std::endl;
   // Vector to perform some bread and butter analysis on the timing
   vector<float> vals;
+  vector<float> vals2;
 
-  allocateInputData(x, y, layer, weight, capacity, use_accelerator);
-  
   auto begin = std::chrono::high_resolution_clock::now();
 
-  readDataFromFile(inputFileName, x, y, layer, weight, capacity, size);
+  allocateInputData(x, y, layer, weight, capacity, use_accelerator);
 
   auto end = std::chrono::high_resolution_clock::now();
 
-  double time_read = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+  float time_allocate_input = std::chrono::duration<float>(end - begin).count();
+  
+  timings.emplace_back("allocateInputData", time_allocate_input * 1000);
 
-  timings.emplace_back("readDataFromFile", time_read);
+  begin = std::chrono::high_resolution_clock::now();
+
+  readDataFromFile(inputFileName, x, y, layer, weight, capacity, size);
+
+  end = std::chrono::high_resolution_clock::now();
+
+  float time_read = std::chrono::duration<float>(end - begin).count();
+
+  timings.emplace_back("readDataFromFile", time_read * 1000);
+
+  begin = std::chrono::high_resolution_clock::now();
     
   allocateOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator, size);
+
+  end = std::chrono::high_resolution_clock::now();
+
+  float time_allocate_output = std::chrono::duration<float>(end - begin).count();
+  
+  timings.emplace_back("allocateOutputData", time_allocate_output * 1000);
 
   //////////////////////////////
   // run CLUE algorithm
   //////////////////////////////
+
   std::cout << "Start to run CLUE algorithm" << std::endl;
   if (use_accelerator) {
-
 #if !defined(USE_ALPAKA)
-    std::cout << "Native CUDA Backend selected" << std::endl;
+    std::cout << "Native HIP Backend selected" << std::endl;
     CLUEAlgoGPU<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor, verbose, size, x, y, layer, weight, 
       rho, delta, nearestHigher, clusterIndex, isSeed);
     vals.clear();
+    vals2.clear();
     for (unsigned r = 0; r < repeats; r++) {
       clueAlgo.setInputPoints(size, x, y, layer, weight);
       clueAlgo.setOutputPoints(size, rho, delta, nearestHigher, clusterIndex, isSeed);
       // measure excution time of makeClusters
+      clueAlgo.Sync();
       auto start = std::chrono::high_resolution_clock::now();
-      clueAlgo.makeClusters(); //without size, i can get point_.n
-      //clueAlgo.Sync();
+      clueAlgo.copy_todevice();
+      clueAlgo.makeClusters();
+      clueAlgo.copy_tohost();
       auto finish = std::chrono::high_resolution_clock::now();
       clueAlgo.Sync();
-      std::chrono::duration<double> elapsed = finish - start;
+      auto finish2 = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<float> submit = finish - start;
+      std::chrono::duration<float> execute = finish2 - start;
       std::cout << "Iteration " << r;
-      std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
+      std::cout << " | Submission time: " << submit.count() * 1000 << " ms\n";
+      std::cout << " | Execution time: " << execute.count() * 1000 << " ms\n";
       // Skip first event
       if (r != 0 or repeats == 1) {
-        vals.push_back(elapsed.count() * 1000);
+        vals.push_back(submit.count() * 1000);
+        vals2.push_back(execute.count() * 1000);
       }
     }
 
-    printTimingReport(vals, repeats, timings, "SUMMARY WorkDivByPoints:");
+    printTimingReport(vals, repeats, timings, "SUMMARY WorkDivByPoints submission times:");
+    printTimingReport(vals2, repeats, timings, "SUMMARY WorkDivByPoints execution times:");
 
-    auto begin = std::chrono::high_resolution_clock::now();
+    begin = std::chrono::high_resolution_clock::now();
 
     // output result to outputFileName. -1 means all points.
     clueAlgo.verboseResults(outputFileName, -1);
 
-    auto end = std::chrono::high_resolution_clock::now();
+    end = std::chrono::high_resolution_clock::now();
 
-    double time_write = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
+    float time_write = std::chrono::duration<float>(end - begin).count();
 
-    timings.emplace_back("writeDataToFile", time_write);
+    timings.emplace_back("writeDataToFile", time_write * 1000);
 
-    std::cout << "Native CUDA Backend selected WorkDivByTile" << std::endl;
-    CLUEAlgoGPU<TilesConstants, NLAYERS, WorkDivByTile> clueAlgoByTile(dc, rhoc, outlierDeltaFactor, verbose, size, x, y, layer, weight, 
-      rho, delta, nearestHigher, clusterIndex, isSeed);
-    vals.clear();
-    for (unsigned r = 0; r < repeats; r++) {
-      // if (!clueAlgoByTile.setPoints(capacity, x, y, layer, weight))
-      clueAlgoByTile.setInputPoints(size, x, y, layer, weight);
-      clueAlgoByTile.setOutputPoints(size, rho, delta, nearestHigher, clusterIndex, isSeed);
-      //   exit(EXIT_FAILURE);
-      // measure excution time of makeClusters
-      auto start = std::chrono::high_resolution_clock::now();
-      clueAlgoByTile.makeClusters();
-      auto finish = std::chrono::high_resolution_clock::now();
-      clueAlgoByTile.Sync();
-      std::chrono::duration<double> elapsed = finish - start;
-      std::cout << "Iteration " << r;
-      std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
-      // Skip first event
-      if (r != 0 or repeats == 1) {
-        vals.push_back(elapsed.count() * 1000);
-      }
-    }
-
-    printTimingReport(vals, repeats, timings, "SUMMARY WorkDivByTile:");
-
-    // output result to outputFileName. -1 means all points.
-    clueAlgoByTile.verboseResults(outputFileName, -1);
-
-    free(x, y, layer, weight, rho, delta, nearestHigher, clusterIndex, isSeed);
+    begin = std::chrono::high_resolution_clock::now();
     
-// #elif defined(USE_ALPAKA)
-//     std::cout << "ALPAKA 'Backend' selected" << std::endl;
-//     using namespace alpaka;
-//     // Define the index domain
-//     using Dim = alpaka::DimInt<1u>;
-//     using Idx = uint32_t;
-//     using Acc = SelectedAcc<Dim, Idx>;
-//     CLUEAlgoAlpaka<Acc, alpaka::Queue<Acc, alpaka::NonBlocking>, TilesConstants, NLAYERS> clueAlgo(
-//         dc, rhoc, outlierDeltaFactor, verbose);
-//     vals.clear();
-//     for (unsigned r = 0; r < repeats; r++) {
-//       if (!clueAlgo.setPoints(capacity, x, y, layer, weight))
-//         exit(EXIT_FAILURE);
-//       // measure excution time of makeClusters
-//       auto start = std::chrono::high_resolution_clock::now();
-//       clueAlgo.makeClusters();
-//       auto finish = std::chrono::high_resolution_clock::now();
-//       std::chrono::duration<double> elapsed = finish - start;
-//       std::cout << "Iteration " << r;
-//       std::cout << " | Elapsed time: " << elapsed.count() * 1000 << " ms\n";
+    freeInputData(x, y, layer, weight, use_accelerator);
+    
+    end = std::chrono::high_resolution_clock::now();
 
-//       // Skip first event
-//       if (r != 0 or repeats == 1) {
-//         vals.push_back(elapsed.count() * 1000);
-//       }
-//     }
+    float time_free_input = std::chrono::duration<float>(end - begin).count();
 
-//     printTimingReport(vals, repeats, timings, "SUMMARY Alpaka Backend:");
+    timings.emplace_back("freeInputData", time_free_input * 1000);
 
-//     // output result to outputFileName. -1 means all points.
-//     clueAlgo.verboseResults(outputFileName, -1);
+    begin = std::chrono::high_resolution_clock::now();
+    
+    freeOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator);
+    
+    end = std::chrono::high_resolution_clock::now();
+
+    float time_free_output = std::chrono::duration<float>(end - begin).count();
+
+    timings.emplace_back("freeOutputData", time_free_output * 1000);    
+    
  #endif
    } else {
-
-    // readDataFromFile(inputFileName, x, y, layer, weight, gpuId, capacity, use_accelerator, size);
-
-    // allocateOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator, size);
 
     std::cout << "Native CPU(serial) Backend selected" << std::endl;
     CLUEAlgo<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor,
@@ -385,7 +390,10 @@ void mainRun(const std::string &inputFileName,
       clueAlgo.verboseResults(outputFileName, -1);
   }
 
-  std::ofstream results("results_unified.csv");
+  std::string run_number = argv[13];
+  std::string filename = "Results/results_unified" + run_number + ".csv";
+
+  std::ofstream results(filename);
   if (!results.is_open()) {
     std::cerr << "Failed to open file.\n";
     return;
@@ -399,8 +407,9 @@ void mainRun(const std::string &inputFileName,
   results.close();
 
   std::cout << "Finished running CLUE algorithm" << std::endl;
+  //}
 }  // end of testRun()
-             
+
 
 int main(int argc, char *argv[]) {
   //////////////////////////////
@@ -475,7 +484,7 @@ int main(int argc, char *argv[]) {
   // MARK -- test run
   //////////////////////////////
   mainRun(inputFileName, outputFileName, dc, rhoc, outlierDeltaFactor,
-          use_accelerator, repeats, verbose);
+          use_accelerator, repeats, verbose, argv);
 
   return 0;
 }

@@ -72,7 +72,7 @@ class CLUEAlgo {
     points_.p_clusterIndex = clusterIndex;
     points_.p_isSeed = isSeed;
 
-    resizeOutputContainers();
+    //resizeOutputContainers();
 
   }
 
@@ -129,7 +129,7 @@ void CLUEAlgo<T, NLAYERS>::resizeOutputContainers() {
   // points_.rho.resize(points_.n, 0);
   // points_.delta.resize(points_.n, std::numeric_limits<float>::max());
   // points_.nearestHigher.resize(points_.n, std::numeric_limits<unsigned int>::max());
-  points_.followers.resize(points_.n);
+  // points_.followers.resize(points_.n);
   // points_.clusterIndex.resize(points_.n, -1);
   // points_.isSeed.resize(points_.n, 0);
 }

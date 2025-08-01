@@ -3,8 +3,8 @@
 // -------- 3. keep the existing error macro but rename it -------------------
 // -------- 4. pull in the body that still uses CUDA names -------------------
 
-#ifndef CLUEAlgoGPU_h
-#define CLUEAlgoGPU_h
+#ifndef CLUEAlgoGPUHip_h
+#define CLUEAlgoGPUHip_h
 #include <math.h>
 
 #include <iostream>
@@ -21,14 +21,14 @@
 
 #define CHECK_HIP_ERROR(val) check((val), #val, __FILE__, __LINE__)
 template <typename T>
-inline void check(T err, const char* func, const char* file, int line)
+void check(T err, const char *const func, const char *const file, const int line)
 {
     if (err != hipSuccess)
     {
         std::cerr << "HIP Runtime Error at: " << file << ":" << line << "\n"
                   << hipGetErrorString(err) << " " << func << std::endl;
         std::exit(EXIT_FAILURE);
-    }Y
+    }
 }
 
 class WorkDivByPoints;
@@ -73,6 +73,38 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
   }
   // destructor
   ~CLUEAlgoGPU() { free_device(); }
+
+  void copy_todevice() {
+    int gpuId;
+    CHECK_HIP_ERROR(hipGetDevice(&gpuId));
+
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.x, sizeof(float) * points_gpu.n, gpuId, stream_));
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.y, sizeof(float) * points_gpu.n, gpuId, stream_));
+    CHECK_HIP_ERROR(         
+      hipMemPrefetchAsync(points_gpu.layer, sizeof(int) * points_gpu.n, gpuId, stream_));
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.weight, sizeof(float) * points_gpu.n, gpuId, stream_)); 
+    if (useAbsoluteSigma_)
+      CHECK_HIP_ERROR(
+        hipMemPrefetchAsync(points_gpu.sigmaNoise, sizeof(float) * points_gpu.n, gpuId, stream_));
+  } 
+
+  void copy_tohost() {
+    //prefetch just for the output
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.rho, sizeof(float) * points_gpu.n, hipCpuDeviceId, stream_));
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.delta, sizeof(float) * points_gpu.n, hipCpuDeviceId, stream_));
+    CHECK_HIP_ERROR(         
+      hipMemPrefetchAsync(points_gpu.nearestHigher, sizeof(int) * points_gpu.n, hipCpuDeviceId, stream_));
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.clusterIndex, sizeof(int) * points_gpu.n, hipCpuDeviceId, stream_)); 
+    CHECK_HIP_ERROR(
+      hipMemPrefetchAsync(points_gpu.isSeed, sizeof(uint8_t) * points_gpu.n, hipCpuDeviceId, stream_));
+  }
+
 
   // public methods
   void makeClusters();  // overwrite base class
@@ -138,56 +170,26 @@ class CLUEAlgoGPU : public CLUEAlgo<T, NLAYERS> {
     CHECK_HIP_ERROR(hipStreamDestroy(stream_));
   }
 
-  void copy_todevice() {
-    int gpuId;
-    hipGetDevice(&gpuId);
-
-    CHECK_HIP_ERROR(
-      hipMemPrefetchAsync(points_gpu.x, sizeof(float) * points_gpu.n, gpuId, stream_));
-    CHECK_HIP_ERROR(
-      hipMemPrefetchAsync(points_gpu.y, sizeof(float) * points_gpu.n, gpuId, stream_));
-    CHECK_HIP_ERROR(         
-      hipMemPrefetchAsync(points_gpu.layer, sizeof(int) * points_gpu.n, gpuId, stream_));
-    CHECK_HIP_ERROR(
-      hipMemPrefetchAsync(points_gpu.weight, sizeof(float) * points_gpu.n, gpuId, stream_)); 
-    if (useAbsoluteSigma_)
-      CHECK_HIP_ERROR(
-        hipMemPrefetchAsync(points_gpu.sigmaNoise, sizeof(float) * points_gpu.n, gpuId, stream_));
-  } 
 
   void clear_internal_buffers() {
-    // result variables
-    CHECK_HIP_ERROR(hipMemPrefetchAsync(points_gpu.rho, 0x00,
+// result variables
+    CHECK_HIP_ERROR(hipMemsetAsync(points_gpu.rho, 0x00,
                                      sizeof(float) * points_gpu.n, stream_));
-    CHECK_HIP_ERROR(hipMemPrefetchAsync(points_gpu.delta, 0x00,
+    CHECK_HIP_ERROR(hipMemsetAsync(points_gpu.delta, 0x00,
                                      sizeof(float) * points_gpu.n, stream_));
-    CHECK_HIP_ERROR(hipMemPrefetchAsync(points_gpu.nearestHigher, 0x00,
+    CHECK_HIP_ERROR(hipMemsetAsync(points_gpu.nearestHigher, 0x00,
                                      sizeof(int) * points_gpu.n, stream_));
-    CHECK_HIP_ERROR(hipMemPrefetchAsync(points_gpu.clusterIndex, 0x00,
+    CHECK_HIP_ERROR(hipMemsetAsync(points_gpu.clusterIndex, 0x00,
                                      sizeof(int) * points_gpu.n, stream_));
-    CHECK_HIP_ERROR(hipMemPrefetchAsync(points_gpu.isSeed, 0x00,
+    CHECK_HIP_ERROR(hipMemsetAsync(points_gpu.isSeed, 0x00,
                                      sizeof(uint8_t) * points_gpu.n, stream_));
     //algorithm internal variables
   CHECK_HIP_ERROR(
-    hipMemPrefetchAsync(d_hist, 0x00, sizeof(TilesGPU<T>) * NLAYERS, stream_));
+    hipMemsetAsync(d_hist, 0x00, sizeof(TilesGPU<T>) * NLAYERS, stream_));
   CHECK_HIP_ERROR(
-    hipMemPrefetchAsync(d_seeds, 0x00, sizeof(GPU::VecArray<int, maxNSeeds>), stream_));
+    hipMemsetAsync(d_seeds, 0x00, sizeof(GPU::VecArray<int, maxNSeeds>), stream_));
   CHECK_HIP_ERROR(
-    hipMemPrefetchAsync(d_followers, 0x00, sizeof(GPU::VecArray<int, maxNFollowers>) * points_gpu.n, stream_));
-  }
-
-  void copy_tohost() {
-    //prefetch just for the output
-    CHECK_HIP_ERROR(
-      hipMemPrefetchAsync(points_gpu.rho, sizeof(float) * points_gpu.n, hipCpuDeviceId, stream_));
-    CHECK_HIP_ERROR(
-      hipMemPrefetchAsync(points_gpu.delta, sizeof(float) * points_gpu.n, hipCpuDeviceId, stream_));
-    CHECK_HIP_ERROR(         
-      hipMemPrefetchAsync(points_gpu.nearestHigher, sizeof(int) * points_gpu.n, hipCpuDeviceId, stream_));
-    CHECK_HIP_ERROR(
-      hipMemPrefetchAsync(points_gpu.clusterIndex, sizeof(int) * points_gpu.n, hipCpuDeviceId, stream_)); 
-    CHECK_HIP_ERROR(
-      hipMemPrefetchAsync(points_gpu.isSeed, sizeof(uint8_t) * points_gpu.n, hipCpuDeviceId, stream_));
+    hipMemsetAsync(d_followers, 0x00, sizeof(GPU::VecArray<int, maxNFollowers>) * points_gpu.n, stream_));
   }
 
 };
@@ -512,7 +514,7 @@ __global__ void kernel_assign_clusters(
 
 template <typename T, int NLAYERS, typename W>
 void CLUEAlgoGPU<T, NLAYERS, W>::makeClusters() {
-  copy_todevice();
+  //copy_todevice();
   clear_internal_buffers();
 
   ////////////////////////////////////////////
@@ -558,7 +560,7 @@ void CLUEAlgoGPU<T, NLAYERS, W>::makeClusters() {
   kernel_assign_clusters<<<gridSize_nseeds, blockSize, 0, stream_>>>(
       d_seeds, d_followers, points_gpu, points_.n);
 
-  copy_tohost();
+  //copy_tohost();
   ///
   }
 
