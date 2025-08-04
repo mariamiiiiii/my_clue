@@ -1,9 +1,9 @@
 Operation,Time
-allocateInputData,2.84923
-readDataFromFile,25.935
-allocateOutputData,0.497563
-kernelSubmissionMean,0.427982
-kernelExecutionMean,23.8829
-writeDataToFile,76.371
-freeInputData,2.5011
-freeOutputData,0.492452
+allocateInputData,2.69125
+readDataFromFile,25.5334
+allocateOutputData,0.490392
+kernelSubmissionMean,0.423566
+kernelExecutionMean,23.8996
+writeDataToFile,76.245
+freeInputData,2.53742
+freeOutputData,0.659373

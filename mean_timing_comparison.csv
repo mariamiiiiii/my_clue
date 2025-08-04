@@ -1,0 +1,13 @@
+Operation,Time_Classic,Time_Unified
+readDataFromFile,33.89756,25.99362
+allocateInputData,0.2135158,2.729034
+allocateOutputData,2.262912,0.4890450999999999
+SubmissionCopyToDevice,0.03955833,
+ExecutionCopyToDevice,0.1067307,
+SubmissionMakeClusters,0.02715191,
+ExecutionMakeClusters,6.807968,
+SubmissionCopyToHost,0.2731208,
+ExecutionCopyToHost,0.2738525,
+writeDataToFile,75.33421,75.57487
+freeInputData,2.459958,2.545801
+freeOutputData,0.5442783999999999,0.5873777
