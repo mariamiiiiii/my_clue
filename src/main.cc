@@ -79,11 +79,23 @@ void printTimingReport(std::vector<float> &vals, int repeats,
             << std::fixed << std::setprecision(precision) << mean << " +/- "
             << sigma << " [ms]" << std::endl;
 
-  if (label == "SUMMARY WorkDivByPoints submission times:") {
-    timings.emplace_back("kernelSubmissionMean", mean);
+  if (label == "SUMMARY WorkDivByPoints submission copy_to_device times:") {
+    timings.emplace_back("SubmissionCopyToDevice", mean);
   }     
-  else if (label == "SUMMARY WorkDivByPoints execution times:") {
-    timings.emplace_back("kernelExecutionMean", mean);
+  else if (label == "SUMMARY WorkDivByPoints execution copy_to_device times:") {
+    timings.emplace_back("ExecutionCopyToDevice", mean);
+  }
+  else if (label == "SUMMARY WorkDivByPoints submission make_clusters times:") {
+    timings.emplace_back("SubmissionMakeClusters", mean);
+  }
+  else if (label == "SUMMARY WorkDivByPoints execution make_clusters times:") {
+    timings.emplace_back("ExecutionMakeClusters", mean);
+  }
+  else if (label == "SUMMARY WorkDivByPoints submission copy_to_host times:") {
+    timings.emplace_back("SubmissionCopyToHost", mean);
+  }
+  else if (label == "SUMMARY WorkDivByPoints execution copy_to_host times:") {
+    timings.emplace_back("ExecutionCopyToHost", mean);
   }
 }
 
@@ -227,7 +239,8 @@ void mainRun(const std::string &inputFileName,
              const bool use_accelerator, const int repeats,
              const bool verbose, char* argv[]) {
 
-  CHECK_HIP_ERROR(hipFree(nullptr));            
+  CHECK_HIP_ERROR(hipFree(nullptr));
+
   //////////////////////////////
   // read toy data from csv file
   //////////////////////////////
@@ -255,9 +268,14 @@ void mainRun(const std::string &inputFileName,
   uint8_t* isSeed = nullptr;
 
   std::cout << "Finished loading input points" << std::endl;
+
   // Vector to perform some bread and butter analysis on the timing
   vector<float> vals;
   vector<float> vals2;
+  vector<float> vals3;
+  vector<float> vals4;
+  vector<float> vals5;
+  vector<float> vals6;
 
   auto begin = std::chrono::high_resolution_clock::now();
 
@@ -301,6 +319,10 @@ void mainRun(const std::string &inputFileName,
       rho, delta, nearestHigher, clusterIndex, isSeed);
     vals.clear();
     vals2.clear();
+    vals3.clear();
+    vals4.clear();
+    vals5.clear();
+    vals6.clear();
     for (unsigned r = 0; r < repeats; r++) {
       clueAlgo.setInputPoints(size, x, y, layer, weight);
       clueAlgo.setOutputPoints(size, rho, delta, nearestHigher, clusterIndex, isSeed);
@@ -308,25 +330,49 @@ void mainRun(const std::string &inputFileName,
       clueAlgo.Sync();
       auto start = std::chrono::high_resolution_clock::now();
       clueAlgo.copy_todevice();
-      clueAlgo.makeClusters();
-      clueAlgo.copy_tohost();
       auto finish = std::chrono::high_resolution_clock::now();
       clueAlgo.Sync();
       auto finish2 = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<float> submit = finish - start;
-      std::chrono::duration<float> execute = finish2 - start;
+      std::chrono::duration<float> submit_copy_to_device = finish - start;
+      std::chrono::duration<float> execute_copy_to_device = finish2 - start;
+      start = std::chrono::high_resolution_clock::now();
+      clueAlgo.makeClusters(); //without size, i can get point_.n
+      finish = std::chrono::high_resolution_clock::now();
+      clueAlgo.Sync();
+      finish2 = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<float> submit_make_clusters = finish - start;
+      std::chrono::duration<float> execute_make_clusters = finish2 - start;
+      start = std::chrono::high_resolution_clock::now();
+      clueAlgo.copy_tohost();
+      finish = std::chrono::high_resolution_clock::now();
+      clueAlgo.Sync();
+      finish2 = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<float> submit_copy_to_host = finish - start;
+      std::chrono::duration<float> execute_copy_to_host = finish2 - start;
       std::cout << "Iteration " << r;
-      std::cout << " | Submission time: " << submit.count() * 1000 << " ms\n";
-      std::cout << " | Execution time: " << execute.count() * 1000 << " ms\n";
+      std::cout << " | Submission time copy_to_device: " << submit_copy_to_device.count() * 1000 << " ms\n";
+      std::cout << " | Execution time copy_to_device: " << execute_copy_to_device.count() * 1000 << " ms\n";
+      std::cout << " | Submission time make_clusters: " << submit_make_clusters.count() * 1000 << " ms\n";
+      std::cout << " | Execution time make_clusters: " << execute_make_clusters.count() * 1000 << " ms\n";
+      std::cout << " | Submission time copy_to_host: " << submit_copy_to_host.count() * 1000 << " ms\n";
+      std::cout << " | Execution time copy_to_host: " << execute_copy_to_host.count() * 1000 << " ms\n";
       // Skip first event
       if (r != 0 or repeats == 1) {
-        vals.push_back(submit.count() * 1000);
-        vals2.push_back(execute.count() * 1000);
+        vals.push_back(submit_copy_to_device.count() * 1000);
+        vals2.push_back(execute_copy_to_device.count() * 1000);
+        vals3.push_back(submit_make_clusters.count() * 1000);
+        vals4.push_back(execute_make_clusters.count() * 1000);
+        vals5.push_back(submit_copy_to_host.count() * 1000);
+        vals6.push_back(execute_copy_to_host.count() * 1000);
       }
     }
 
-    printTimingReport(vals, repeats, timings, "SUMMARY WorkDivByPoints submission times:");
-    printTimingReport(vals2, repeats, timings, "SUMMARY WorkDivByPoints execution times:");
+    printTimingReport(vals, repeats, timings, "SUMMARY WorkDivByPoints submission copy_to_device times:");
+    printTimingReport(vals2, repeats, timings, "SUMMARY WorkDivByPoints execution copy_to_device times:");
+    printTimingReport(vals3, repeats, timings, "SUMMARY WorkDivByPoints submission make_clusters times:");
+    printTimingReport(vals4, repeats, timings, "SUMMARY WorkDivByPoints execution make_clusters times:");
+    printTimingReport(vals5, repeats, timings, "SUMMARY WorkDivByPoints submission copy_to_host times:");
+    printTimingReport(vals6, repeats, timings, "SUMMARY WorkDivByPoints execution copy_to_host times:");
 
     begin = std::chrono::high_resolution_clock::now();
 
