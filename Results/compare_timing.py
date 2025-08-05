@@ -108,7 +108,7 @@ bars_unified = plt.bar([i + bar_width for i in index], df['Time_Unified'], bar_w
 for bar in bars_classic + bars_unified:
     yval = bar.get_height()
     label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.05, label, ha='center', va='bottom', fontsize=8)
+    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.04, label, ha='center', va='bottom', fontsize=8)
 
 plt.xlabel('Operation')
 plt.ylabel('Time (ms)')
@@ -121,33 +121,27 @@ plt.ylim(0, 4)
 plt.savefig("Results/mean_comparison_zoom_in.png")
 plt.show()
 
-
-# === Plot 2: Mean + Std Error Bars ===
+# === Plot 1.3: Basic mean comparison log ===
 
 plt.figure(figsize=(14, 8))
-
-bars_classic_std = plt.bar(index, df['Time_Classic'], yerr=merged_std['Time_Classic'], capsize=5,
-                           label='Classic', width=bar_width, color='#4682B4', alpha=0.8)
-bars_unified_std = plt.bar([i + bar_width for i in index], df['Time_Unified'], yerr=merged_std['Time_Unified'], capsize=5,
-                           label='Unified Memory', width=bar_width, color='#CD5C5C', alpha=0.8)
+bars_classic = plt.bar(index, df['Time_Classic'], bar_width, label='Classic', color='#4682B4')
+bars_unified = plt.bar([i + bar_width for i in index], df['Time_Unified'], bar_width, label='Unified Memory', color='#CD5C5C')
 
 # Add value labels
-for bar in bars_classic_std + bars_unified_std:
+for bar in bars_classic + bars_unified:
     yval = bar.get_height()
     label = f'{yval:.3f}'.rstrip('0').rstrip('.')
     plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
 
 plt.xlabel('Operation')
 plt.ylabel('Time (ms)')
-plt.title('Mean ± Std Deviation: Classic vs Unified Memory')
+plt.title('Performance Comparison: Classic vs Unified Memory')
 plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
 plt.legend()
+plt.yscale('log') # logarithmic scale
 plt.tight_layout()
 plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.savefig("Results/mean_std_classic_vs_unified.png")
-plt.show()
-plt.ylim(0, 5)
-plt.savefig("Results/mean_std_classic_vs_unified_zoom_in.png")
+plt.savefig("Results/mean_comparison_log.png")
 plt.show()
 
 # === Plot 2.1: Mean + Std Error Bars ===
@@ -175,7 +169,7 @@ plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.savefig("Results/mean_std_classic_vs_unified.png")
 plt.show()
 
-# === Plot 2.1: Mean + Std Error Bars zoom in ===
+# === Plot 2.2: Mean + Std Error Bars zoom in ===
 
 plt.figure(figsize=(14, 8))
 
@@ -188,7 +182,7 @@ bars_unified_std = plt.bar([i + bar_width for i in index], df['Time_Unified'], y
 for bar in bars_classic_std + bars_unified_std:
     yval = bar.get_height()
     label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.05, label, ha='center', va='bottom', fontsize=8)
+    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.04, label, ha='center', va='bottom', fontsize=8)
 
 plt.xlabel('Operation')
 plt.ylabel('Time (ms)')
@@ -199,6 +193,32 @@ plt.tight_layout()
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.ylim(0, 4)
 plt.savefig("Results/mean_std_classic_vs_unified_zoom_in.png")
+plt.show()
+
+# === Plot 2.3: Mean + Std Error Bars log ===
+
+plt.figure(figsize=(14, 8))
+
+bars_classic_std = plt.bar(index, df['Time_Classic'], yerr=merged_std['Time_Classic'], capsize=5,
+                           label='Classic', width=bar_width, color='#4682B4', alpha=0.8)
+bars_unified_std = plt.bar([i + bar_width for i in index], df['Time_Unified'], yerr=merged_std['Time_Unified'], capsize=5,
+                           label='Unified Memory', width=bar_width, color='#CD5C5C', alpha=0.8)
+
+# Add value labels
+for bar in bars_classic_std + bars_unified_std:
+    yval = bar.get_height()
+    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
+    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
+
+plt.xlabel('Operation')
+plt.ylabel('Time (ms)')
+plt.title('Mean ± Std Deviation: Classic vs Unified Memory')
+plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
+plt.legend()
+plt.yscale('log') # logarithmic scale
+plt.tight_layout()
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.savefig("Results/mean_std_classic_vs_unified_log.png")
 plt.show()
 
 # === Plot 3.1: Std Deviation Comparison Only ===
@@ -224,7 +244,7 @@ plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.savefig("Results/std_comparison.png")
 plt.show()
 
-# === Plot 3: Std Deviation Comparison Only ===
+# === Plot 3.2: Std Deviation Comparison Only zoom in ===
 
 plt.figure(figsize=(14, 8))
 
@@ -246,4 +266,28 @@ plt.tight_layout()
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.ylim(0, 1)
 plt.savefig("Results/std_comparison_zoom_in.png")
+plt.show()
+
+# === Plot 3.3: Std Deviation Comparison Only log ===
+
+plt.figure(figsize=(14, 8))
+
+bars_classic_only_std = plt.bar(index, merged_std['Time_Classic'], width=bar_width, label='Classic STD', color='#1E90FF')
+bars_unified_only_std = plt.bar([i + bar_width for i in index], merged_std['Time_Unified'], width=bar_width, label='Unified STD', color='#FF7F7F')
+
+# Add value labels
+for bar in bars_classic_only_std + bars_unified_only_std:
+    yval = bar.get_height()
+    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
+    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
+
+plt.xlabel('Operation')
+plt.ylabel('Standard Deviation (ms)')
+plt.title('Standard Deviation Comparison: Classic vs Unified Memory')
+plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
+plt.legend()
+plt.yscale('log') # logarithmic scale
+plt.tight_layout()
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.savefig("Results/std_comparison_log.png")
 plt.show()
