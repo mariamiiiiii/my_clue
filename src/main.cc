@@ -133,10 +133,10 @@ void readDataFromFile(const std::string &inputFileName, std::vector<float> &x,
 
 void hostRegisterData(std::vector<float> &x, std::vector<float> &y, 
                       std::vector<int> &layer, std::vector<float> &weight) {
-  cudaHostRegister(x.data(), x.size() * sizeof(float), cudaHostRegisterPortable | cudaHostRegisterMapped);
-  cudaHostRegister(y.data(), y.size() * sizeof(float), cudaHostRegisterPortable | cudaHostRegisterMapped);
-  cudaHostRegister(layer.data(), layer.size() * sizeof(int), cudaHostRegisterPortable | cudaHostRegisterMapped);
-  cudaHostRegister(weight.data(), weight.size() * sizeof(float), cudaHostRegisterPortable | cudaHostRegisterMapped);
+  CHECK_CUDA_ERROR(cudaHostRegister(x.data(), x.size() * sizeof(float), cudaHostRegisterPortable | cudaHostRegisterMapped));
+  CHECK_CUDA_ERROR(cudaHostRegister(y.data(), y.size() * sizeof(float), cudaHostRegisterPortable | cudaHostRegisterMapped));
+  CHECK_CUDA_ERROR(cudaHostRegister(layer.data(), layer.size() * sizeof(int), cudaHostRegisterPortable | cudaHostRegisterMapped));
+  CHECK_CUDA_ERROR(cudaHostRegister(weight.data(), weight.size() * sizeof(float), cudaHostRegisterPortable | cudaHostRegisterMapped));
 }
 
 void freeInputData(std::vector<float> &x, std::vector<float> &y,
@@ -186,7 +186,7 @@ void mainRun(const std::string &inputFileName,
              const bool use_accelerator, const int repeats,
              const bool verbose, char* argv[]) {
 
-  cudaFree(nullptr);
+  CHECK_CUDA_ERROR(cudaFree(nullptr));
 
   //////////////////////////////
   // read toy data from csv file

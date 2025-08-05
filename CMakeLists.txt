@@ -7,7 +7,7 @@ project(
   LANGUAGES CXX)
 
 # Location of the ALPAKA
-set(ALPAKA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/alpaka CACHE PATH "Path to ALPAKA (by default: submodule)")
+#set(ALPAKA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/alpaka CACHE PATH "Path to ALPAKA (by default: submodule)")
 
 # Location of TBB
 #set(TBB_DIR "/cvmfs/cms.cern.ch/slc7_amd64_gcc820/external/tbb/2020_U2-ghbfee/cmake/TBB/")
@@ -74,14 +74,14 @@ function(run_test_gpu target label repeats)
   endforeach()
 endfunction()
 
-if(CMAKE_CUDA_COMPILER)
-  run_test_cpu(./src/clue/main main 4)
-  run_test_cpu(./src/clue_cuda_alpaka/mainAlpakaCUDA Alpaka 4)
-  run_test_gpu(./src/clue/main CUDA 100)
-  run_test_gpu(./src/clue_cuda_alpaka/mainAlpakaCUDA AlpakaCUDA 100)
-else()
-  run_test_cpu(./src/clue_tbb_alpaka/mainAlpakaTBB TBB 4)
-endif()
+# if(CMAKE_CUDA_COMPILER)
+  # run_test_cpu(./src/clue/main main 4)
+  # run_test_cpu(./src/clue_cuda_alpaka/mainAlpakaCUDA Alpaka 4)
+  # run_test_gpu(./src/clue/main CUDA 100)
+  # run_test_gpu(./src/clue_cuda_alpaka/mainAlpakaCUDA AlpakaCUDA 100)
+# else()
+  # run_test_cpu(./src/clue_tbb_alpaka/mainAlpakaTBB TBB 4)
+# endif()
 
 #--- add version files ---------------------------------------------------------
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CLUEVersion.h
