@@ -199,16 +199,36 @@ plt.show()
 
 plt.figure(figsize=(14, 8))
 
-bars_classic_std = plt.bar(index, df['Time_Classic'], yerr=merged_std['Time_Classic'], capsize=5,
-                           label='Classic', width=bar_width, color='#4682B4', alpha=0.8)
-bars_unified_std = plt.bar([i + bar_width for i in index], df['Time_Unified'], yerr=merged_std['Time_Unified'], capsize=5,
-                           label='Unified Memory', width=bar_width, color='#CD5C5C', alpha=0.8)
+bars_classic_std = plt.bar(index, df['Time_Classic'],
+                           yerr=merged_std['Time_Classic'],
+                           capsize=5,
+                           label='Classic',
+                           width=bar_width,
+                           color='#4B7D74',
+                           ecolor='#B46841',         
+                           alpha=0.8)
+bars_unified_std = plt.bar([i + bar_width for i in index], df['Time_Unified'],
+                           yerr=merged_std['Time_Unified'],
+                           capsize=5,
+                           label='Unified Memory',
+                           width=bar_width,
+                           color='#D9C89E',
+                           ecolor='#B46841',      
+                           alpha=0.8)
 
-# Add value labels
-for bar in bars_classic_std + bars_unified_std:
+for i, bar in enumerate(bars_classic_std):
     yval = bar.get_height()
+    std = merged_std['Time_Classic'].iloc[i]
     label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
+    ypos = yval * (1.05 + std / yval)
+    plt.text(bar.get_x() + bar.get_width()/2, ypos, label, ha='center', va='bottom', fontsize=8)
+
+for i, bar in enumerate(bars_unified_std):
+    yval = bar.get_height()
+    std = merged_std['Time_Unified'].iloc[i]
+    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
+    ypos = yval * (1.05 + std / yval) 
+    plt.text(bar.get_x() + bar.get_width()/2, ypos, label, ha='center', va='bottom', fontsize=8)
 
 plt.xlabel('Operation')
 plt.ylabel('Time (ms)')
