@@ -1,6 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 import warnings
+import math
 import glob
 import os
 
@@ -66,6 +68,7 @@ merged_mean.to_csv("mean_timing_comparison.csv", index=False)
 
 # === Plot 1.1: Basic mean comparison (no error bars) ===
 df = merged_mean
+
 plt.rcParams.update({
     'font.size': 8,
     'xtick.labelsize': 9,
@@ -98,6 +101,110 @@ plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.savefig("Results/mean_comparison.png")
 plt.show()
 
+
+
+
+
+#test plotttttttttt
+
+
+# --- Keep original ops (excluding submission/execution detailed) ---
+submission_ops = [
+    "SubmissionCopyToDevice",
+    "SubmissionMakeClusters",
+    "SubmissionCopyToHost"
+]
+execution_ops = [
+    "ExecutionCopyToDevice",
+    "ExecutionMakeClusters",
+    "ExecutionCopyToHost"
+]
+
+df = merged_mean.copy()
+
+# Separate the normal operations
+normal_df = df[~df["Operation"].isin(submission_ops + execution_ops)].copy()
+
+# Create new stacked rows for submission and execution
+def build_stacked_bar_df(ops_list, label):
+    classic = df[df["Operation"].isin(ops_list)]["Time_Classic"].values
+    unified = df[df["Operation"].isin(ops_list)]["Time_Unified"].values
+    return pd.DataFrame({
+        "Part": ops_list,
+        "Submission": [label] * len(ops_list),
+        "Time_Classic": classic,
+        "Time_Unified": unified
+    })
+
+submission_stack = build_stacked_bar_df(submission_ops, "Submission")
+execution_stack = build_stacked_bar_df(execution_ops, "Execution")
+
+# Now prepare plot
+fig, ax = plt.subplots(figsize=(14, 8))
+
+bar_width = 0.35
+x_labels = list(normal_df["Operation"]) + ["Submission", "Execution"]
+x = np.arange(len(x_labels))
+
+# Plot normal ops (side-by-side bars)
+for i, row in normal_df.iterrows():
+    idx = x_labels.index(row["Operation"])
+    ax.bar(x[idx] - bar_width/2, row["Time_Classic"], width=bar_width, label='Classic' if i == 0 else "", color='#4682B4')
+    ax.bar(x[idx] + bar_width/2, row["Time_Unified"], width=bar_width, label='Unified' if i == 0 else "", color='#CD5C5C')
+
+# Plot stacked Submission (Classic)
+bottom = 0
+idx = x_labels.index("Submission")
+for i, row in submission_stack.iterrows():
+    val = row["Time_Classic"]
+    ax.bar(x[idx] - bar_width/2, val, width=bar_width, bottom=bottom, color='#87CEFA', edgecolor='black', label=row["Part"] if idx == x_labels.index("Submission") else "")
+    ax.text(x[idx] - bar_width/2, bottom + val / 2, f"{val:.2f}", ha='center', va='center', fontsize=7)
+    bottom += val
+
+# Plot stacked Submission (Unified)
+bottom = 0
+for i, row in submission_stack.iterrows():
+    val = row["Time_Unified"]
+    ax.bar(x[idx] + bar_width/2, val, width=bar_width, bottom=bottom, color='#FA8072', edgecolor='black')
+    ax.text(x[idx] + bar_width/2, bottom + val / 2, f"{val:.2f}", ha='center', va='center', fontsize=7)
+    bottom += val
+
+# Plot stacked Execution (Classic)
+idx = x_labels.index("Execution")
+bottom = 0
+for i, row in execution_stack.iterrows():
+    val = row["Time_Classic"]
+    ax.bar(x[idx] - bar_width/2, val, width=bar_width, bottom=bottom, color='#ADD8E6', edgecolor='black', label=row["Part"] if idx == x_labels.index("Execution") else "")
+    ax.text(x[idx] - bar_width/2, bottom + val / 2, f"{val:.2f}", ha='center', va='center', fontsize=7)
+    bottom += val
+
+# Plot stacked Execution (Unified)
+bottom = 0
+for i, row in execution_stack.iterrows():
+    val = row["Time_Unified"]
+    ax.bar(x[idx] + bar_width/2, val, width=bar_width, bottom=bottom, color='#F08080', edgecolor='black')
+    ax.text(x[idx] + bar_width/2, bottom + val / 2, f"{val:.2f}", ha='center', va='center', fontsize=7)
+    bottom += val
+
+# Final formatting
+ax.set_xticks(x)
+ax.set_xticklabels(x_labels, rotation=15)
+ax.set_ylabel("Time (ms)")
+ax.set_title("Performance Comparison: Classic vs Unified (with Stacked Submission/Execution)")
+ax.grid(axis='y', linestyle='--', alpha=0.6)
+ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
+plt.tight_layout()
+plt.savefig("Results/mean_comparison_stacked_submission_execution_both_methods.png")
+plt.show()
+
+
+
+
+
+
+
+
+
 # === Plot 1.2: Basic mean comparison (no error bars) zoom in ===
 
 plt.figure(figsize=(14, 8))
@@ -124,14 +231,15 @@ plt.show()
 # === Plot 1.3: Basic mean comparison log ===
 
 plt.figure(figsize=(14, 8))
-bars_classic = plt.bar(index, df['Time_Classic'], bar_width, label='Classic', color='#4682B4')
-bars_unified = plt.bar([i + bar_width for i in index], df['Time_Unified'], bar_width, label='Unified Memory', color='#CD5C5C')
+bars_classic = plt.bar(index, df['Time_Classic'], bar_width, label='Classic', color='#4B7D74')
+bars_unified = plt.bar([i + bar_width for i in index], df['Time_Unified'], bar_width, label='Unified Memory', color='#D9C89E')
 
 # Add value labels
 for bar in bars_classic + bars_unified:
     yval = bar.get_height()
     label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
+    plt.text(bar.get_x() + bar.get_width()/2, yval * 1.15, label, ha='center', va='bottom', fontsize=8)
+
 
 plt.xlabel('Operation')
 plt.ylabel('Time (ms)')
@@ -157,7 +265,7 @@ bars_unified_std = plt.bar([i + bar_width for i in index], df['Time_Unified'], y
 for bar in bars_classic_std + bars_unified_std:
     yval = bar.get_height()
     label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
+    plt.text(bar.get_x() + bar.get_width()/2, yval * 1.05, label, ha='center', va='bottom', fontsize=8)
 
 plt.xlabel('Operation')
 plt.ylabel('Time (ms)')
@@ -199,16 +307,37 @@ plt.show()
 
 plt.figure(figsize=(14, 8))
 
-bars_classic_std = plt.bar(index, df['Time_Classic'], yerr=merged_std['Time_Classic'], capsize=5,
-                           label='Classic', width=bar_width, color='#4682B4', alpha=0.8)
-bars_unified_std = plt.bar([i + bar_width for i in index], df['Time_Unified'], yerr=merged_std['Time_Unified'], capsize=5,
-                           label='Unified Memory', width=bar_width, color='#CD5C5C', alpha=0.8)
+bars_classic_std = plt.bar(index, df['Time_Classic'],
+                           yerr=merged_std['Time_Classic'],
+                           capsize=5,
+                           label='Classic',
+                           width=bar_width,
+                           color='#4B7D74',
+                           ecolor='#B46841',         
+                           alpha=0.8)
+bars_unified_std = plt.bar([i + bar_width for i in index], df['Time_Unified'],
+                           yerr=merged_std['Time_Unified'],
+                           capsize=5,
+                           label='Unified Memory',
+                           width=bar_width,
+                           color='#D9C89E',
+                           ecolor='#B46841',      
+                           alpha=0.8)
 
-# Add value labels
-for bar in bars_classic_std + bars_unified_std:
+for i, bar in enumerate(bars_classic_std):
     yval = bar.get_height()
+    std = merged_std['Time_Classic'].iloc[i]
     label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
+    ypos = yval * (1.05 + std / yval)
+    plt.text(bar.get_x() + bar.get_width()/2, ypos, label, ha='center', va='bottom', fontsize=8)
+
+for i, bar in enumerate(bars_unified_std):
+    yval = bar.get_height()
+    std = merged_std['Time_Unified'].iloc[i]
+    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
+    ypos = yval * (1.05 + std / yval) 
+    plt.text(bar.get_x() + bar.get_width()/2, ypos, label, ha='center', va='bottom', fontsize=8)
+
 
 plt.xlabel('Operation')
 plt.ylabel('Time (ms)')
