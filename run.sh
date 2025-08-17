@@ -23,6 +23,7 @@ cmake \
 cmake --build build
 
 rm -f ../Results/results_unified*.csv
+rm -f ../Results/results_unified_no_prefetch*.csv
 
 for i in {0..10}
 do
