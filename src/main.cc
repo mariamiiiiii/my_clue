@@ -272,27 +272,6 @@ void mainRun(const std::string &inputFileName,
 
     timings.emplace_back("readDataFromFile", time_read * 1000);
 
-    // #if !defined(USE_ALPAKA)
-    // if (use_accelerator) {
-    //   int dev; cudaGetDevice(&dev);
-    //   cudaMemAdvise(x,      size*sizeof(float), cudaMemAdviseSetAccessedBy,      dev);
-    //   cudaMemAdvise(x,      size*sizeof(float), cudaMemAdviseSetPreferredLocation, dev);
-    //   cudaMemAdvise(x,      size*sizeof(float), cudaMemAdviseSetReadMostly,      0);
-
-    //   cudaMemAdvise(y,      size*sizeof(float), cudaMemAdviseSetAccessedBy,      dev);
-    //   cudaMemAdvise(y,      size*sizeof(float), cudaMemAdviseSetPreferredLocation, dev);
-    //   cudaMemAdvise(y,      size*sizeof(float), cudaMemAdviseSetReadMostly,      0);
-
-    //   cudaMemAdvise(layer,  size*sizeof(int),   cudaMemAdviseSetAccessedBy,      dev);
-    //   cudaMemAdvise(layer,  size*sizeof(int),   cudaMemAdviseSetPreferredLocation, dev);
-    //   cudaMemAdvise(layer,  size*sizeof(int),   cudaMemAdviseSetReadMostly,      0);
-
-    //   cudaMemAdvise(weight, size*sizeof(float), cudaMemAdviseSetAccessedBy,      dev);
-    //   cudaMemAdvise(weight, size*sizeof(float), cudaMemAdviseSetPreferredLocation, dev);
-    //   cudaMemAdvise(weight, size*sizeof(float), cudaMemAdviseSetReadMostly,      0);
-    // }
-    // #endif
-
     begin = std::chrono::high_resolution_clock::now();
       
     allocateOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator, size);
@@ -302,27 +281,6 @@ void mainRun(const std::string &inputFileName,
     float time_allocate_output = std::chrono::duration<float>(end - begin).count();
     
     timings.emplace_back("allocateOutputData", time_allocate_output * 1000);
-
-    // #if !defined(USE_ALPAKA)
-    // if (use_accelerator) {
-    //   int dev; cudaGetDevice(&dev);
-    //   cudaMemAdvise(rho,           size*sizeof(float),        cudaMemAdviseSetAccessedBy,       dev);
-    //   cudaMemAdvise(rho,           size*sizeof(float),        cudaMemAdviseSetPreferredLocation, dev);
-
-    //   cudaMemAdvise(delta,         size*sizeof(float),        cudaMemAdviseSetAccessedBy,       dev);
-    //   cudaMemAdvise(delta,         size*sizeof(float),        cudaMemAdviseSetPreferredLocation, dev);
-
-    //   cudaMemAdvise(nearestHigher, size*sizeof(unsigned int), cudaMemAdviseSetAccessedBy,       dev);
-    //   cudaMemAdvise(nearestHigher, size*sizeof(unsigned int), cudaMemAdviseSetPreferredLocation, dev);
-
-    //   cudaMemAdvise(clusterIndex,  size*sizeof(int),          cudaMemAdviseSetAccessedBy,       dev);
-    //   cudaMemAdvise(clusterIndex,  size*sizeof(int),          cudaMemAdviseSetPreferredLocation, dev);
-
-    //   cudaMemAdvise(isSeed,        size*sizeof(uint8_t),      cudaMemAdviseSetAccessedBy,       dev);
-    //   cudaMemAdvise(isSeed,        size*sizeof(uint8_t),      cudaMemAdviseSetPreferredLocation, dev);
-    // }
-    // #endif
-
 
     //////////////////////////////
     // run CLUE algorithm
@@ -361,26 +319,6 @@ void mainRun(const std::string &inputFileName,
 
       printTimingReport(vals, repeats, timings, "SUMMARY WorkDivByPoints submission times:");
       printTimingReport(vals2, repeats, timings, "SUMMARY WorkDivByPoints execution times:");
-
-      // #if !defined(USE_ALPAKA)
-      // if (use_accelerator) {
-      //   cudaMemAdvise(rho,           size*sizeof(float),        cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-      //   cudaMemAdvise(rho,           size*sizeof(float),        cudaMemAdviseSetReadMostly,        0);
-
-      //   cudaMemAdvise(delta,         size*sizeof(float),        cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-      //   cudaMemAdvise(delta,         size*sizeof(float),        cudaMemAdviseSetReadMostly,        0);
-
-      //   cudaMemAdvise(nearestHigher, size*sizeof(unsigned int), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-      //   cudaMemAdvise(nearestHigher, size*sizeof(unsigned int), cudaMemAdviseSetReadMostly,        0);
-
-      //   cudaMemAdvise(clusterIndex,  size*sizeof(int),          cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-      //   cudaMemAdvise(clusterIndex,  size*sizeof(int),          cudaMemAdviseSetReadMostly,        0);
-
-      //   cudaMemAdvise(isSeed,        size*sizeof(uint8_t),      cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-      //   cudaMemAdvise(isSeed,        size*sizeof(uint8_t),      cudaMemAdviseSetReadMostly,        0);
-      // }
-      // #endif
-
 
       begin = std::chrono::high_resolution_clock::now();
 
@@ -443,7 +381,7 @@ void mainRun(const std::string &inputFileName,
     }
 
     std::string run_number = argv[13];
-    std::string filename = "Results_milan/results_unified" + run_number + ".csv";
+    std::string filename = "Results/results_unified" + run_number + ".csv";
 
     std::ofstream results(filename);
     if (!results.is_open()) {
@@ -521,27 +459,6 @@ void mainRunNoPrefetch(const std::string &inputFileName,
 
     timings.emplace_back("readDataFromFile", time_read * 1000);
 
-    // #if !defined(USE_ALPAKA)
-    // if (use_accelerator) {
-    //   int dev; cudaGetDevice(&dev);
-    //   cudaMemAdvise(x,      size*sizeof(float), cudaMemAdviseSetAccessedBy,      dev);
-    //   cudaMemAdvise(x,      size*sizeof(float), cudaMemAdviseSetPreferredLocation, dev);
-    //   cudaMemAdvise(x,      size*sizeof(float), cudaMemAdviseSetReadMostly,      0);
-
-    //   cudaMemAdvise(y,      size*sizeof(float), cudaMemAdviseSetAccessedBy,      dev);
-    //   cudaMemAdvise(y,      size*sizeof(float), cudaMemAdviseSetPreferredLocation, dev);
-    //   cudaMemAdvise(y,      size*sizeof(float), cudaMemAdviseSetReadMostly,      0);
-
-    //   cudaMemAdvise(layer,  size*sizeof(int),   cudaMemAdviseSetAccessedBy,      dev);
-    //   cudaMemAdvise(layer,  size*sizeof(int),   cudaMemAdviseSetPreferredLocation, dev);
-    //   cudaMemAdvise(layer,  size*sizeof(int),   cudaMemAdviseSetReadMostly,      0);
-
-    //   cudaMemAdvise(weight, size*sizeof(float), cudaMemAdviseSetAccessedBy,      dev);
-    //   cudaMemAdvise(weight, size*sizeof(float), cudaMemAdviseSetPreferredLocation, dev);
-    //   cudaMemAdvise(weight, size*sizeof(float), cudaMemAdviseSetReadMostly,      0);
-    // }
-    // #endif
-
     begin = std::chrono::high_resolution_clock::now();
       
     allocateOutputData(rho, delta, nearestHigher, clusterIndex, isSeed, use_accelerator, size);
@@ -551,26 +468,6 @@ void mainRunNoPrefetch(const std::string &inputFileName,
     float time_allocate_output = std::chrono::duration<float>(end - begin).count();
     
     timings.emplace_back("allocateOutputData", time_allocate_output * 1000);
-
-    // #if !defined(USE_ALPAKA)
-    // if (use_accelerator) {
-    //   int dev; cudaGetDevice(&dev);
-    //   cudaMemAdvise(rho,           size*sizeof(float),        cudaMemAdviseSetAccessedBy,       dev);
-    //   cudaMemAdvise(rho,           size*sizeof(float),        cudaMemAdviseSetPreferredLocation, dev);
-
-    //   cudaMemAdvise(delta,         size*sizeof(float),        cudaMemAdviseSetAccessedBy,       dev);
-    //   cudaMemAdvise(delta,         size*sizeof(float),        cudaMemAdviseSetPreferredLocation, dev);
-
-    //   cudaMemAdvise(nearestHigher, size*sizeof(unsigned int), cudaMemAdviseSetAccessedBy,       dev);
-    //   cudaMemAdvise(nearestHigher, size*sizeof(unsigned int), cudaMemAdviseSetPreferredLocation, dev);
-
-    //   cudaMemAdvise(clusterIndex,  size*sizeof(int),          cudaMemAdviseSetAccessedBy,       dev);
-    //   cudaMemAdvise(clusterIndex,  size*sizeof(int),          cudaMemAdviseSetPreferredLocation, dev);
-
-    //   cudaMemAdvise(isSeed,        size*sizeof(uint8_t),      cudaMemAdviseSetAccessedBy,       dev);
-    //   cudaMemAdvise(isSeed,        size*sizeof(uint8_t),      cudaMemAdviseSetPreferredLocation, dev);
-    // }
-    // #endif
 
     //////////////////////////////
     // run CLUE algorithm
@@ -609,25 +506,6 @@ void mainRunNoPrefetch(const std::string &inputFileName,
 
       printTimingReport(vals, repeats, timings, "SUMMARY WorkDivByPoints submission times:");
       printTimingReport(vals2, repeats, timings, "SUMMARY WorkDivByPoints execution times:");
-
-      // #if !defined(USE_ALPAKA)
-      // if (use_accelerator) {
-      //   cudaMemAdvise(rho,           size*sizeof(float),        cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-      //   cudaMemAdvise(rho,           size*sizeof(float),        cudaMemAdviseSetReadMostly,        0);
-
-      //   cudaMemAdvise(delta,         size*sizeof(float),        cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-      //   cudaMemAdvise(delta,         size*sizeof(float),        cudaMemAdviseSetReadMostly,        0);
-
-      //   cudaMemAdvise(nearestHigher, size*sizeof(unsigned int), cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-      //   cudaMemAdvise(nearestHigher, size*sizeof(unsigned int), cudaMemAdviseSetReadMostly,        0);
-
-      //   cudaMemAdvise(clusterIndex,  size*sizeof(int),          cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-      //   cudaMemAdvise(clusterIndex,  size*sizeof(int),          cudaMemAdviseSetReadMostly,        0);
-
-      //   cudaMemAdvise(isSeed,        size*sizeof(uint8_t),      cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-      //   cudaMemAdvise(isSeed,        size*sizeof(uint8_t),      cudaMemAdviseSetReadMostly,        0);
-      // }
-      // #endif
 
       begin = std::chrono::high_resolution_clock::now();
 
@@ -690,7 +568,7 @@ void mainRunNoPrefetch(const std::string &inputFileName,
     }
 
     std::string run_number = argv[13];
-    std::string filename = "Results_milan/results_unified_no_prefetch" + run_number + ".csv";
+    std::string filename = "Results/results_unified_no_prefetch" + run_number + ".csv";
 
     std::ofstream results(filename);
     if (!results.is_open()) {

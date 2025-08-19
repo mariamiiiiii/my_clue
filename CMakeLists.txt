@@ -57,7 +57,7 @@ if(Boost_FOUND)
   include_directories(AFTER SYSTEM ${Boost_INCLUDE_DIRS})
 endif()
 
-find_package(TBB REQUIRED)
+#find_package(TBB REQUIRED)
 if(TBB_FOUND)
   message(STATUS "TBB package found!")
 endif()

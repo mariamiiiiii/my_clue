@@ -2,28 +2,20 @@
 
 rm -rf build
 
-cd /data/cmssw/el8_amd64_gcc12/cms/cmssw/CMSSW_15_1_0_pre4
-eval `scram runtime -sh`
-CUDA_BASE=$(scram tool tag cuda CUDA_BASE)
-TBB_BASE=$(scram tool tag tbb TBB_BASE)
-BOOST_BASE=$(scram tool tag boost BOOST_BASE)
-ALPAKA_BASE=$(scram tool tag alpaka ALPAKA_BASE)
-cd -
+CUDA_BASE=/usr/local/cuda-12.8
+ROCM_BASE=/opt/rocm-6.4.1
+
 
 
 cmake \
-  -DCMAKE_PREFIX_PATH="${BOOST_BASE};${TBB_BASE};${CUDA_BASE}" \
+  -DCMAKE_PREFIX_PATH="${CUDA_BASE}" \
   -DCHECK_CUDA_VERSION=OFF \
-  -DALPAKA_DIR="${ALPAKA_BASE}" \
   -DCMAKE_CUDA_ARCHITECTURES=89 \
   -B build \
   -S . \
   -L
 
 cmake --build build
-
-rm -f ../Results/results_unified*.csv
-rm -f ../Results/results_unified_no_prefetch*.csv
 
 for i in {0..10}
 do
