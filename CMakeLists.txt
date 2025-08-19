@@ -50,7 +50,7 @@ if(Boost_FOUND)
   message(STATUS "Boost package found!")
 endif()
 
-find_package(TBB REQUIRED)
+#find_package(TBB REQUIRED)
 if(TBB_FOUND)
   message(STATUS "TBB package found!")
 endif()
