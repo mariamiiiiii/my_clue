@@ -158,7 +158,7 @@ void allocateOutputData (float* &rho, float* &delta, unsigned int* &nearestHighe
       // Allocate HIP-managed memory
       CHECK_HIP_ERROR(hipMallocManaged(&rho, size * sizeof(float)));
       CHECK_HIP_ERROR(hipMallocManaged(&delta, size * sizeof(float)));
-      CHECK_HIP_ERROR(hipMallocManaged(&nearestHigher, size * sizeof(int)));
+      CHECK_HIP_ERROR(hipMallocManaged(&nearestHigher, size * sizeof(uint)));
       CHECK_HIP_ERROR(hipMallocManaged(&clusterIndex, size * sizeof(int)));
       CHECK_HIP_ERROR(hipMallocManaged(&isSeed, size * sizeof(uint8_t)));
 
@@ -467,7 +467,7 @@ int main(int argc, char *argv[]) {
   bool use_accelerator = false;
   bool verbose = false;
   float dc = 20.f, rhoc = 80.f, outlierDeltaFactor = 2.f;
-  int repeats = 10;
+  int repeats = 100;
   int TBBNumberOfThread = 1;
   int opt;
   std::string inputFileName;
