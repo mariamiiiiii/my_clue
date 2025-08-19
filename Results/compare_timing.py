@@ -119,8 +119,8 @@ bar_width = 0.35
 plt.figure(figsize=(14, 8), constrained_layout=True)
 
 # Colors + legend labels (your palette)
-classic_exec = "#5790fc"; classic_sub  = "#964a8b"
-unified_exec = "#f89c20"; unified_sub  = "#e42536"
+classic_exec = "#5790fc"; classic_sub  = "#2b477d"
+unified_exec = "#f89c20"; unified_sub  = "#7a4d10"
 
 lbl_c_sub = "Classic-submission"
 lbl_c_exe = "Classic-execution"
@@ -297,8 +297,8 @@ bar_width = 0.35
 plt.figure(figsize=(14, 8), constrained_layout=True)
 
 # Colors + legend labels (your palette)
-classic_exec = "#5790fc"; classic_sub  = "#964a8b"
-unified_exec = "#f89c20"; unified_sub  = "#e42536"
+classic_exec = "#5790fc"; classic_sub  = "#2b477d"
+unified_exec = "#f89c20"; unified_sub  = "#7a4d10"
 
 lbl_c_sub = "Classic-submission"
 lbl_c_exe = "Classic-execution"
@@ -470,8 +470,8 @@ bar_width = 0.35
 plt.figure(figsize=(14, 8), constrained_layout=True)
 
 # Colors + legend labels (your palette)
-classic_exec = "#5790fc"; classic_sub  = "#964a8b"
-unified_exec = "#f89c20"; unified_sub  = "#e42536"
+classic_exec = "#5790fc"; classic_sub  = "#2b477d"
+unified_exec = "#f89c20"; unified_sub  = "#7a4d10"
 
 lbl_c_sub = "Classic-submission"
 lbl_c_exe = "Classic-execution"
