@@ -149,7 +149,7 @@ void allocateOutputData (float* &rho, float* &delta, unsigned int* &nearestHighe
       // Allocate CUDA-managed memory
       CHECK_CUDA_ERROR(cudaMallocManaged(&rho, size * sizeof(float)));
       CHECK_CUDA_ERROR(cudaMallocManaged(&delta, size * sizeof(float)));
-      CHECK_CUDA_ERROR(cudaMallocManaged(&nearestHigher, size * sizeof(int)));
+      CHECK_CUDA_ERROR(cudaMallocManaged(&nearestHigher, size * sizeof(uint)));
       CHECK_CUDA_ERROR(cudaMallocManaged(&clusterIndex, size * sizeof(int)));
       CHECK_CUDA_ERROR(cudaMallocManaged(&isSeed, size * sizeof(uint8_t)));
 
@@ -453,7 +453,7 @@ int main(int argc, char *argv[]) {
   bool use_accelerator = false;
   bool verbose = false;
   float dc = 20.f, rhoc = 80.f, outlierDeltaFactor = 2.f;
-  int repeats = 10;
+  int repeats = 100;
   int TBBNumberOfThread = 1;
   int opt;
   std::string inputFileName;

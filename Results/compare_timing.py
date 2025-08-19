@@ -66,357 +66,534 @@ merged_std = classic_std.merge(unified_std, on='Operation', suffixes=('_Classic'
 # Save merged mean for the base bar chart
 merged_mean.to_csv("mean_timing_comparison.csv", index=False)
 
-# === Plot 1.1: Basic mean comparison (no error bars) ===
-df = merged_mean
 
-plt.rcParams.update({
-    'font.size': 8,
-    'xtick.labelsize': 9,
-    'ytick.labelsize': 9,
-    'axes.labelsize': 9,
-    'legend.fontsize': 8,
-    'axes.titlesize': 10
-})
+# 1.approval log ===
 
+# small, consistent fonts (follow your rcParams)
+FS_BASE   = plt.rcParams['font.size']      # e.g. 8 from your rcParams block
+FS_TOP    = FS_BASE                        # numbers on bar tops
+TOP_DY    = 1                              # points offset for top labels
+EPS       = 1e-6                           # for log-scale safety
+
+def fmt_pm(mean, std):
+    if np.isfinite(mean) and np.isfinite(std):
+        return f"{mean:.2f} ± {std:.2f}"
+    elif np.isfinite(mean):
+        return f"{mean:.2f}"
+    return ""
+
+def y_at_std_top(mean, std):
+    """Return y for label at top of ±1σ (mean+std). Falls back to mean if std missing."""
+    if np.isfinite(mean) and np.isfinite(std):
+        return max(mean + std, mean + EPS)  # ensure > mean (nice on log scale)
+    return mean
+
+# Clean strings and index once
+merged_mean["Operation"] = merged_mean["Operation"].astype(str).str.strip()
+df_idx  = merged_mean.set_index("Operation")
+std_idx = merged_std.set_index("Operation")
+
+def get_mean(op, col):
+    return float(df_idx.at[op, col]) if op in df_idx.index else np.nan
+
+def get_std(op, col):
+    return float(std_idx.at[op, col]) if op in std_idx.index else np.nan
+
+# X-axis order (your list)
+SIMPLE_OPS = ["readDataFromFile", "allocateInputData", "allocateOutputData",
+              "writeDataToFile", "freeInputData", "freeOutputData"]
+
+STACK_OPS  = [("CopyToDevice", "CopyToDevice/Prefetch"),
+              ("MakeClusters", "Kernel"),
+              ("CopyToHost",   "CopyToHost/Prefetch")]
+
+# Build unified group order: first 3 simple, then stacked trio, then remaining simple
+groups = []
+for op in SIMPLE_OPS[:3]: groups.append(("simple", op, op))
+for key, pretty in STACK_OPS: groups.append(("stack", key, pretty))
+for op in SIMPLE_OPS[3:]: groups.append(("simple", op, op))
+
+x = np.arange(len(groups))
 bar_width = 0.35
-index = range(len(df))
 
-plt.figure(figsize=(14, 8))
-bars_classic = plt.bar(index, df['Time_Classic'], bar_width, label='Classic', color='#4682B4')
-bars_unified = plt.bar([i + bar_width for i in index], df['Time_Unified'], bar_width, label='Unified Memory', color='#CD5C5C')
+plt.figure(figsize=(14, 8), constrained_layout=True)
 
-# Add value labels
-for bar in bars_classic + bars_unified:
-    yval = bar.get_height()
-    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
+# Colors + legend labels (your palette)
+classic_exec = "#5790fc"; classic_sub  = "#964a8b"
+unified_exec = "#f89c20"; unified_sub  = "#e42536"
 
-plt.xlabel('Operation')
-plt.ylabel('Time (ms)')
-plt.title('Performance Comparison: Classic vs Unified Memory')
-plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
-plt.legend()
-plt.tight_layout()
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.savefig("Results/mean_comparison.png")
+lbl_c_sub = "Classic-submission"
+lbl_c_exe = "Classic-execution"
+lbl_u_sub = "Unified-submission"
+lbl_u_exe = "Unified-execution"
+used_labels = set()
+
+def add_bar(*args, label=None, **kw):
+    if label and label in used_labels:
+        label = "_nolegend_"
+    elif label:
+        used_labels.add(label)
+    return plt.bar(*args, label=label, **kw)
+
+def add_errbar(xc, y, s, color):
+    """Draw ±1σ error bar, safe for log-scale (no negative lower bound)."""
+    if np.isfinite(y) and np.isfinite(s) and y > EPS and s > 0:
+        low = min(s, y - EPS)                      # cap so y - low > 0 on log scale
+        yerr = np.array([[low], [s]])              # asymmetric: [lower; upper]
+        plt.errorbar(xc, y, yerr=yerr, fmt="none",
+                     ecolor=color, elinewidth=1.0, capsize=4, zorder=3)
+
+# Draw bars
+for i, (kind, key, pretty) in enumerate(groups):
+    if kind == "simple":
+        # simple ops: one value per mode (treated as 'execution' bars)
+        c_val = get_mean(key, "Time_Classic")
+        u_val = get_mean(key, "Time_Unified")
+        c_std = get_std(key,  "Time_Classic")
+        u_std = get_std(key,  "Time_Unified")
+
+        xc = x[i] - bar_width/2
+        xu = x[i] + bar_width/2
+
+        add_bar(xc, [c_val], width=bar_width, color=classic_exec, label=lbl_c_exe)
+        add_bar(xu, [u_val], width=bar_width, color=unified_exec, label=lbl_u_exe)
+
+        # labels on top
+        # mean labels at the TOP of the ±1σ whisker (no ± text)
+        if np.isfinite(c_val) and c_val > EPS:
+            ylab_c = y_at_std_top(c_val, c_std)   # -> mean + std (safe on log)
+            plt.annotate(f"{c_val:.2f}", xy=(xc, ylab_c), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+
+        if np.isfinite(u_val) and u_val > EPS:
+            ylab_u = y_at_std_top(u_val, u_std)
+            plt.annotate(f"{u_val:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+
+
+
+
+        # std as error bars at the bar top
+        add_errbar(xc, c_val, c_std, color="#2f5597")   # classic whisker color
+        add_errbar(xu, u_val, u_std, color="#a15c00")   # unified whisker color
+
+    else:  # stacked GPU ops
+        # === Stacked GPU ops: compute means and stds (EXECUTION std!) ===
+        c_sub = get_mean(f"Submission{key}", "Time_Classic")
+        c_exe = get_mean(f"Execution{key}",  "Time_Classic")
+        u_sub = get_mean(f"Submission{key}", "Time_Unified")
+        u_exe = get_mean(f"Execution{key}",  "Time_Unified")
+
+        # std for the TOTAL height (Execution), not Submission
+        c_exe_std = get_std(f"Execution{key}", "Time_Classic")
+        u_exe_std = get_std(f"Execution{key}", "Time_Unified")
+
+        # top segment = Execution − Submission (never negative)
+        c_top = max(c_exe - c_sub, 0.0) if np.isfinite(c_exe) and np.isfinite(c_sub) else np.nan
+        u_top = max(u_exe - u_sub, 0.0) if np.isfinite(u_exe) and np.isfinite(u_sub) else np.nan
+
+        xc = x[i] - bar_width/2
+        xu = x[i] + bar_width/2
+
+        # Classic stack
+        add_bar(xc, [c_sub], width=bar_width, color=classic_sub,  label=lbl_c_sub)
+        add_bar(xc, [c_top], width=bar_width, bottom=[c_sub], color=classic_exec, label=lbl_c_exe)
+
+        # Unified stack
+        add_bar(xu, [u_sub], width=bar_width, color=unified_sub,  label=lbl_u_sub)
+        add_bar(xu, [u_top], width=bar_width, bottom=[u_sub], color=unified_exec, label=lbl_u_exe)
+
+        # ±1σ error bars at the EXECUTION total
+        add_errbar(xc, c_exe, c_exe_std, color="#2f5597")
+        add_errbar(xu, u_exe, u_exe_std, color="#a15c00")
+
+        # mean labels (Execution) at the TOP of the ±1σ whisker
+        if np.isfinite(c_exe) and c_exe > EPS:
+            ylab_c = y_at_std_top(c_exe, c_exe_std)
+            plt.annotate(f"{c_exe:.2f}", xy=(xc, ylab_c), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+
+        if np.isfinite(u_exe) and u_exe > EPS:
+            ylab_u = y_at_std_top(u_exe, u_exe_std)
+            plt.annotate(f"{u_exe:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+
+
+
+# Axes/legend
+labels = [pretty for _,_,pretty in groups]
+plt.xticks(x, labels, rotation=15, ha="right", rotation_mode="anchor")
+plt.ylabel("Time (ms)")
+plt.yscale('log')  # logarithmic scale
+plt.title("Classic vs Unified Memory - Log scale")
+plt.grid(axis="y", linestyle="--", alpha=0.6)
+
+# Add a proxy legend entry for error bars (avoid duplicate whiskers)
+from matplotlib.lines import Line2D
+err_proxy = Line2D([0], [0], color="#444", lw=1, label="±1σ (std)")
+handles, labels = plt.gca().get_legend_handles_labels()
+if "±1σ (std)" not in labels:
+    handles.append(err_proxy); labels.append("±1σ (std)")
+plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
+
+plt.savefig("Results/approval_log.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 
 
 
 
-#test plotttttttttt
 
 
-# --- Keep original ops (excluding submission/execution detailed) ---
-submission_ops = [
-    "SubmissionCopyToDevice",
-    "SubmissionMakeClusters",
-    "SubmissionCopyToHost"
-]
-execution_ops = [
-    "ExecutionCopyToDevice",
-    "ExecutionMakeClusters",
-    "ExecutionCopyToHost"
-]
+# 1.2 approval linear ===
 
-df = merged_mean.copy()
+# small, consistent fonts (follow your rcParams)
+FS_BASE   = plt.rcParams['font.size']      # e.g. 8 from your rcParams block
+FS_TOP    = FS_BASE                        # numbers on bar tops
+TOP_DY    = 1                              # points offset for top labels
+EPS       = 1e-6                           # for log-scale safety
 
-# Separate the normal operations
-normal_df = df[~df["Operation"].isin(submission_ops + execution_ops)].copy()
+def fmt_pm(mean, std):
+    if np.isfinite(mean) and np.isfinite(std):
+        return f"{mean:.2f} ± {std:.2f}"
+    elif np.isfinite(mean):
+        return f"{mean:.2f}"
+    return ""
 
-# Create new stacked rows for submission and execution
-def build_stacked_bar_df(ops_list, label):
-    classic = df[df["Operation"].isin(ops_list)]["Time_Classic"].values
-    unified = df[df["Operation"].isin(ops_list)]["Time_Unified"].values
-    return pd.DataFrame({
-        "Part": ops_list,
-        "Submission": [label] * len(ops_list),
-        "Time_Classic": classic,
-        "Time_Unified": unified
-    })
+def y_at_std_top(mean, std):
+    """Return y for label at top of ±1σ (mean+std). Falls back to mean if std missing."""
+    if np.isfinite(mean) and np.isfinite(std):
+        return max(mean + std, mean + EPS)  # ensure > mean (nice on log scale)
+    return mean
 
-submission_stack = build_stacked_bar_df(submission_ops, "Submission")
-execution_stack = build_stacked_bar_df(execution_ops, "Execution")
+# Clean strings and index once
+merged_mean["Operation"] = merged_mean["Operation"].astype(str).str.strip()
+df_idx  = merged_mean.set_index("Operation")
+std_idx = merged_std.set_index("Operation")
 
-# Now prepare plot
-fig, ax = plt.subplots(figsize=(14, 8))
+def get_mean(op, col):
+    return float(df_idx.at[op, col]) if op in df_idx.index else np.nan
 
+def get_std(op, col):
+    return float(std_idx.at[op, col]) if op in std_idx.index else np.nan
+
+# X-axis order (your list)
+SIMPLE_OPS = ["readDataFromFile", "allocateInputData", "allocateOutputData",
+              "writeDataToFile", "freeInputData", "freeOutputData"]
+
+STACK_OPS  = [("CopyToDevice", "CopyToDevice/Prefetch"),
+              ("MakeClusters", "Kernel"),
+              ("CopyToHost",   "CopyToHost/Prefetch")]
+
+# Build unified group order: first 3 simple, then stacked trio, then remaining simple
+groups = []
+for op in SIMPLE_OPS[:3]: groups.append(("simple", op, op))
+for key, pretty in STACK_OPS: groups.append(("stack", key, pretty))
+for op in SIMPLE_OPS[3:]: groups.append(("simple", op, op))
+
+x = np.arange(len(groups))
 bar_width = 0.35
-x_labels = list(normal_df["Operation"]) + ["Submission", "Execution"]
-x = np.arange(len(x_labels))
 
-# Plot normal ops (side-by-side bars)
-for i, row in normal_df.iterrows():
-    idx = x_labels.index(row["Operation"])
-    ax.bar(x[idx] - bar_width/2, row["Time_Classic"], width=bar_width, label='Classic' if i == 0 else "", color='#4682B4')
-    ax.bar(x[idx] + bar_width/2, row["Time_Unified"], width=bar_width, label='Unified' if i == 0 else "", color='#CD5C5C')
+plt.figure(figsize=(14, 8), constrained_layout=True)
 
-# Plot stacked Submission (Classic)
-bottom = 0
-idx = x_labels.index("Submission")
-for i, row in submission_stack.iterrows():
-    val = row["Time_Classic"]
-    ax.bar(x[idx] - bar_width/2, val, width=bar_width, bottom=bottom, color='#87CEFA', edgecolor='black', label=row["Part"] if idx == x_labels.index("Submission") else "")
-    ax.text(x[idx] - bar_width/2, bottom + val / 2, f"{val:.2f}", ha='center', va='center', fontsize=7)
-    bottom += val
+# Colors + legend labels (your palette)
+classic_exec = "#5790fc"; classic_sub  = "#964a8b"
+unified_exec = "#f89c20"; unified_sub  = "#e42536"
 
-# Plot stacked Submission (Unified)
-bottom = 0
-for i, row in submission_stack.iterrows():
-    val = row["Time_Unified"]
-    ax.bar(x[idx] + bar_width/2, val, width=bar_width, bottom=bottom, color='#FA8072', edgecolor='black')
-    ax.text(x[idx] + bar_width/2, bottom + val / 2, f"{val:.2f}", ha='center', va='center', fontsize=7)
-    bottom += val
+lbl_c_sub = "Classic-submission"
+lbl_c_exe = "Classic-execution"
+lbl_u_sub = "Unified-submission"
+lbl_u_exe = "Unified-execution"
+used_labels = set()
 
-# Plot stacked Execution (Classic)
-idx = x_labels.index("Execution")
-bottom = 0
-for i, row in execution_stack.iterrows():
-    val = row["Time_Classic"]
-    ax.bar(x[idx] - bar_width/2, val, width=bar_width, bottom=bottom, color='#ADD8E6', edgecolor='black', label=row["Part"] if idx == x_labels.index("Execution") else "")
-    ax.text(x[idx] - bar_width/2, bottom + val / 2, f"{val:.2f}", ha='center', va='center', fontsize=7)
-    bottom += val
+def add_bar(*args, label=None, **kw):
+    if label and label in used_labels:
+        label = "_nolegend_"
+    elif label:
+        used_labels.add(label)
+    return plt.bar(*args, label=label, **kw)
 
-# Plot stacked Execution (Unified)
-bottom = 0
-for i, row in execution_stack.iterrows():
-    val = row["Time_Unified"]
-    ax.bar(x[idx] + bar_width/2, val, width=bar_width, bottom=bottom, color='#F08080', edgecolor='black')
-    ax.text(x[idx] + bar_width/2, bottom + val / 2, f"{val:.2f}", ha='center', va='center', fontsize=7)
-    bottom += val
+def add_errbar(xc, y, s, color):
+    """Draw ±1σ error bar, safe for log-scale (no negative lower bound)."""
+    if np.isfinite(y) and np.isfinite(s) and y > EPS and s > 0:
+        low = min(s, y - EPS)                      # cap so y - low > 0 on log scale
+        yerr = np.array([[low], [s]])              # asymmetric: [lower; upper]
+        plt.errorbar(xc, y, yerr=yerr, fmt="none",
+                     ecolor=color, elinewidth=1.0, capsize=4, zorder=3)
 
-# Final formatting
-ax.set_xticks(x)
-ax.set_xticklabels(x_labels, rotation=15)
-ax.set_ylabel("Time (ms)")
-ax.set_title("Performance Comparison: Classic vs Unified (with Stacked Submission/Execution)")
-ax.grid(axis='y', linestyle='--', alpha=0.6)
-ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
-plt.tight_layout()
-plt.savefig("Results/mean_comparison_stacked_submission_execution_both_methods.png")
+# Draw bars
+for i, (kind, key, pretty) in enumerate(groups):
+    if kind == "simple":
+        # simple ops: one value per mode (treated as 'execution' bars)
+        c_val = get_mean(key, "Time_Classic")
+        u_val = get_mean(key, "Time_Unified")
+        c_std = get_std(key,  "Time_Classic")
+        u_std = get_std(key,  "Time_Unified")
+
+        xc = x[i] - bar_width/2
+        xu = x[i] + bar_width/2
+
+        add_bar(xc, [c_val], width=bar_width, color=classic_exec, label=lbl_c_exe)
+        add_bar(xu, [u_val], width=bar_width, color=unified_exec, label=lbl_u_exe)
+
+        # labels on top
+        # mean labels at the TOP of the ±1σ whisker (no ± text)
+        if np.isfinite(c_val) and c_val > EPS:
+            ylab_c = y_at_std_top(c_val, c_std)   # -> mean + std (safe on log)
+            plt.annotate(f"{c_val:.2f}", xy=(xc, ylab_c), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+
+        if np.isfinite(u_val) and u_val > EPS:
+            ylab_u = y_at_std_top(u_val, u_std)
+            plt.annotate(f"{u_val:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+
+
+
+
+        # std as error bars at the bar top
+        add_errbar(xc, c_val, c_std, color="#2f5597")   # classic whisker color
+        add_errbar(xu, u_val, u_std, color="#a15c00")   # unified whisker color
+
+    else:  # stacked GPU ops
+        # === Stacked GPU ops: compute means and stds (EXECUTION std!) ===
+        c_sub = get_mean(f"Submission{key}", "Time_Classic")
+        c_exe = get_mean(f"Execution{key}",  "Time_Classic")
+        u_sub = get_mean(f"Submission{key}", "Time_Unified")
+        u_exe = get_mean(f"Execution{key}",  "Time_Unified")
+
+        # std for the TOTAL height (Execution), not Submission
+        c_exe_std = get_std(f"Execution{key}", "Time_Classic")
+        u_exe_std = get_std(f"Execution{key}", "Time_Unified")
+
+        # top segment = Execution − Submission (never negative)
+        c_top = max(c_exe - c_sub, 0.0) if np.isfinite(c_exe) and np.isfinite(c_sub) else np.nan
+        u_top = max(u_exe - u_sub, 0.0) if np.isfinite(u_exe) and np.isfinite(u_sub) else np.nan
+
+        xc = x[i] - bar_width/2
+        xu = x[i] + bar_width/2
+
+        # Classic stack
+        add_bar(xc, [c_sub], width=bar_width, color=classic_sub,  label=lbl_c_sub)
+        add_bar(xc, [c_top], width=bar_width, bottom=[c_sub], color=classic_exec, label=lbl_c_exe)
+
+        # Unified stack
+        add_bar(xu, [u_sub], width=bar_width, color=unified_sub,  label=lbl_u_sub)
+        add_bar(xu, [u_top], width=bar_width, bottom=[u_sub], color=unified_exec, label=lbl_u_exe)
+
+        # ±1σ error bars at the EXECUTION total
+        add_errbar(xc, c_exe, c_exe_std, color="#2f5597")
+        add_errbar(xu, u_exe, u_exe_std, color="#a15c00")
+
+        # mean labels (Execution) at the TOP of the ±1σ whisker
+        if np.isfinite(c_exe) and c_exe > EPS:
+            ylab_c = y_at_std_top(c_exe, c_exe_std)
+            plt.annotate(f"{c_exe:.2f}", xy=(xc, ylab_c), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+
+        if np.isfinite(u_exe) and u_exe > EPS:
+            ylab_u = y_at_std_top(u_exe, u_exe_std)
+            plt.annotate(f"{u_exe:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+
+
+
+# Axes/legend
+labels = [pretty for _,_,pretty in groups]
+plt.xticks(x, labels, rotation=15, ha="right", rotation_mode="anchor")
+plt.ylabel("Time (ms)")
+plt.title("Classic vs Unified Memory")
+plt.grid(axis="y", linestyle="--", alpha=0.6)
+
+# Add a proxy legend entry for error bars (avoid duplicate whiskers)
+from matplotlib.lines import Line2D
+err_proxy = Line2D([0], [0], color="#444", lw=1, label="±1σ (std)")
+handles, labels = plt.gca().get_legend_handles_labels()
+if "±1σ (std)" not in labels:
+    handles.append(err_proxy); labels.append("±1σ (std)")
+plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
+
+plt.savefig("Results/approval_linear.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 
 
+# 1.3 approval linear zoomed in ===
+
+# small, consistent fonts (follow your rcParams)
+FS_BASE   = plt.rcParams['font.size']      # e.g. 8 from your rcParams block
+FS_TOP    = FS_BASE                        # numbers on bar tops
+TOP_DY    = 1                              # points offset for top labels
+EPS       = 1e-6                           # for log-scale safety
+
+def fmt_pm(mean, std):
+    if np.isfinite(mean) and np.isfinite(std):
+        return f"{mean:.2f} ± {std:.2f}"
+    elif np.isfinite(mean):
+        return f"{mean:.2f}"
+    return ""
+
+def y_at_std_top(mean, std):
+    """Return y for label at top of ±1σ (mean+std). Falls back to mean if std missing."""
+    if np.isfinite(mean) and np.isfinite(std):
+        return max(mean + std, mean + EPS)  # ensure > mean (nice on log scale)
+    return mean
+
+# Clean strings and index once
+merged_mean["Operation"] = merged_mean["Operation"].astype(str).str.strip()
+df_idx  = merged_mean.set_index("Operation")
+std_idx = merged_std.set_index("Operation")
+
+def get_mean(op, col):
+    return float(df_idx.at[op, col]) if op in df_idx.index else np.nan
+
+def get_std(op, col):
+    return float(std_idx.at[op, col]) if op in std_idx.index else np.nan
+
+# X-axis order (your list)
+SIMPLE_OPS = ["readDataFromFile", "allocateInputData", "allocateOutputData",
+              "writeDataToFile", "freeInputData", "freeOutputData"]
+
+STACK_OPS  = [("CopyToDevice", "CopyToDevice/Prefetch"),
+              ("MakeClusters", "Kernel"),
+              ("CopyToHost",   "CopyToHost/Prefetch")]
+
+# Build unified group order: first 3 simple, then stacked trio, then remaining simple
+groups = []
+for op in SIMPLE_OPS[:3]: groups.append(("simple", op, op))
+for key, pretty in STACK_OPS: groups.append(("stack", key, pretty))
+for op in SIMPLE_OPS[3:]: groups.append(("simple", op, op))
+
+x = np.arange(len(groups))
+bar_width = 0.35
+
+plt.figure(figsize=(14, 8), constrained_layout=True)
+
+# Colors + legend labels (your palette)
+classic_exec = "#5790fc"; classic_sub  = "#964a8b"
+unified_exec = "#f89c20"; unified_sub  = "#e42536"
+
+lbl_c_sub = "Classic-submission"
+lbl_c_exe = "Classic-execution"
+lbl_u_sub = "Unified-submission"
+lbl_u_exe = "Unified-execution"
+used_labels = set()
+
+def add_bar(*args, label=None, **kw):
+    if label and label in used_labels:
+        label = "_nolegend_"
+    elif label:
+        used_labels.add(label)
+    return plt.bar(*args, label=label, **kw)
+
+def add_errbar(xc, y, s, color):
+    """Draw ±1σ error bar, safe for log-scale (no negative lower bound)."""
+    if np.isfinite(y) and np.isfinite(s) and y > EPS and s > 0:
+        low = min(s, y - EPS)                      # cap so y - low > 0 on log scale
+        yerr = np.array([[low], [s]])              # asymmetric: [lower; upper]
+        plt.errorbar(xc, y, yerr=yerr, fmt="none",
+                     ecolor=color, elinewidth=1.0, capsize=4, zorder=3)
+
+# Draw bars
+for i, (kind, key, pretty) in enumerate(groups):
+    if kind == "simple":
+        # simple ops: one value per mode (treated as 'execution' bars)
+        c_val = get_mean(key, "Time_Classic")
+        u_val = get_mean(key, "Time_Unified")
+        c_std = get_std(key,  "Time_Classic")
+        u_std = get_std(key,  "Time_Unified")
+
+        xc = x[i] - bar_width/2
+        xu = x[i] + bar_width/2
+
+        add_bar(xc, [c_val], width=bar_width, color=classic_exec, label=lbl_c_exe)
+        add_bar(xu, [u_val], width=bar_width, color=unified_exec, label=lbl_u_exe)
+
+        # labels on top
+        # mean labels at the TOP of the ±1σ whisker (no ± text)
+        if np.isfinite(c_val) and c_val > EPS:
+            ylab_c = y_at_std_top(c_val, c_std)   # -> mean + std (safe on log)
+            plt.annotate(f"{c_val:.2f}", xy=(xc, ylab_c), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+
+        if np.isfinite(u_val) and u_val > EPS:
+            ylab_u = y_at_std_top(u_val, u_std)
+            plt.annotate(f"{u_val:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
 
 
 
 
+        # std as error bars at the bar top
+        add_errbar(xc, c_val, c_std, color="#2f5597")   # classic whisker color
+        add_errbar(xu, u_val, u_std, color="#a15c00")   # unified whisker color
+
+    else:  # stacked GPU ops
+        # === Stacked GPU ops: compute means and stds (EXECUTION std!) ===
+        c_sub = get_mean(f"Submission{key}", "Time_Classic")
+        c_exe = get_mean(f"Execution{key}",  "Time_Classic")
+        u_sub = get_mean(f"Submission{key}", "Time_Unified")
+        u_exe = get_mean(f"Execution{key}",  "Time_Unified")
+
+        # std for the TOTAL height (Execution), not Submission
+        c_exe_std = get_std(f"Execution{key}", "Time_Classic")
+        u_exe_std = get_std(f"Execution{key}", "Time_Unified")
+
+        # top segment = Execution − Submission (never negative)
+        c_top = max(c_exe - c_sub, 0.0) if np.isfinite(c_exe) and np.isfinite(c_sub) else np.nan
+        u_top = max(u_exe - u_sub, 0.0) if np.isfinite(u_exe) and np.isfinite(u_sub) else np.nan
+
+        xc = x[i] - bar_width/2
+        xu = x[i] + bar_width/2
+
+        # Classic stack
+        add_bar(xc, [c_sub], width=bar_width, color=classic_sub,  label=lbl_c_sub)
+        add_bar(xc, [c_top], width=bar_width, bottom=[c_sub], color=classic_exec, label=lbl_c_exe)
+
+        # Unified stack
+        add_bar(xu, [u_sub], width=bar_width, color=unified_sub,  label=lbl_u_sub)
+        add_bar(xu, [u_top], width=bar_width, bottom=[u_sub], color=unified_exec, label=lbl_u_exe)
+
+        # ±1σ error bars at the EXECUTION total
+        add_errbar(xc, c_exe, c_exe_std, color="#2f5597")
+        add_errbar(xu, u_exe, u_exe_std, color="#a15c00")
+
+        # mean labels (Execution) at the TOP of the ±1σ whisker
+        if np.isfinite(c_exe) and c_exe > EPS:
+            ylab_c = y_at_std_top(c_exe, c_exe_std)
+            plt.annotate(f"{c_exe:.2f}", xy=(xc, ylab_c), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+
+        if np.isfinite(u_exe) and u_exe > EPS:
+            ylab_u = y_at_std_top(u_exe, u_exe_std)
+            plt.annotate(f"{u_exe:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
+                        textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
 
 
-# === Plot 1.2: Basic mean comparison (no error bars) zoom in ===
 
-plt.figure(figsize=(14, 8))
-bars_classic = plt.bar(index, df['Time_Classic'], bar_width, label='Classic', color='#4682B4')
-bars_unified = plt.bar([i + bar_width for i in index], df['Time_Unified'], bar_width, label='Unified Memory', color='#CD5C5C')
+# Axes/legend
+labels = [pretty for _,_,pretty in groups]
+plt.xticks(x, labels, rotation=15, ha="right", rotation_mode="anchor")
+plt.ylabel("Time (ms)")
+plt.title("Classic vs Unified Memory")
+plt.grid(axis="y", linestyle="--", alpha=0.6)
 
-# Add value labels
-for bar in bars_classic + bars_unified:
-    yval = bar.get_height()
-    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.04, label, ha='center', va='bottom', fontsize=8)
-
-plt.xlabel('Operation')
-plt.ylabel('Time (ms)')
-plt.title('Performance Comparison: Classic vs Unified Memory')
-plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
-plt.legend()
-plt.tight_layout()
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.ylim(0, 4)
-plt.savefig("Results/mean_comparison_zoom_in.png")
-plt.show()
-
-# === Plot 1.3: Basic mean comparison log ===
-
-plt.figure(figsize=(14, 8))
-bars_classic = plt.bar(index, df['Time_Classic'], bar_width, label='Classic', color='#4B7D74')
-bars_unified = plt.bar([i + bar_width for i in index], df['Time_Unified'], bar_width, label='Unified Memory', color='#D9C89E')
-
-# Add value labels
-for bar in bars_classic + bars_unified:
-    yval = bar.get_height()
-    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval * 1.15, label, ha='center', va='bottom', fontsize=8)
+# Add a proxy legend entry for error bars (avoid duplicate whiskers)
+from matplotlib.lines import Line2D
+err_proxy = Line2D([0], [0], color="#444", lw=1, label="±1σ (std)")
+handles, labels = plt.gca().get_legend_handles_labels()
+if "±1σ (std)" not in labels:
+    handles.append(err_proxy); labels.append("±1σ (std)")
+plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 
 
-plt.xlabel('Operation')
-plt.ylabel('Time (ms)')
-plt.title('Performance Comparison: Classic vs Unified Memory')
-plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
-plt.legend()
-plt.yscale('log') # logarithmic scale
-plt.tight_layout()
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.savefig("Results/mean_comparison_log.png")
-plt.show()
+# --- Also save a zoomed-in version (linear 0–10 ms) ---
+ax = plt.gca()
+ax.set_yscale('linear')
+ax.set_ylim(0, 4)                         # pick 4, 6, 8, 10… as you like
+ax.set_autoscale_on(False) 
+ax.set_title("Classic vs Unified Memory — Zoomed 0–4 ms")
 
-# === Plot 2.1: Mean + Std Error Bars ===
+plt.savefig("Results/approval_linear_zoom_in.png", dpi=300, bbox_inches="tight")
 
-plt.figure(figsize=(14, 8))
-
-bars_classic_std = plt.bar(index, df['Time_Classic'], yerr=merged_std['Time_Classic'], capsize=5,
-                           label='Classic', width=bar_width, color='#4682B4', alpha=0.8)
-bars_unified_std = plt.bar([i + bar_width for i in index], df['Time_Unified'], yerr=merged_std['Time_Unified'], capsize=5,
-                           label='Unified Memory', width=bar_width, color='#CD5C5C', alpha=0.8)
-
-# Add value labels
-for bar in bars_classic_std + bars_unified_std:
-    yval = bar.get_height()
-    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval * 1.05, label, ha='center', va='bottom', fontsize=8)
-
-plt.xlabel('Operation')
-plt.ylabel('Time (ms)')
-plt.title('Mean ± Std Deviation: Classic vs Unified Memory')
-plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
-plt.legend()
-plt.tight_layout()
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.savefig("Results/mean_std_classic_vs_unified.png")
-plt.show()
-
-# === Plot 2.2: Mean + Std Error Bars zoom in ===
-
-plt.figure(figsize=(14, 8))
-
-bars_classic_std = plt.bar(index, df['Time_Classic'], yerr=merged_std['Time_Classic'], capsize=5,
-                           label='Classic', width=bar_width, color='#4682B4', alpha=0.8)
-bars_unified_std = plt.bar([i + bar_width for i in index], df['Time_Unified'], yerr=merged_std['Time_Unified'], capsize=5,
-                           label='Unified Memory', width=bar_width, color='#CD5C5C', alpha=0.8)
-
-# Add value labels
-for bar in bars_classic_std + bars_unified_std:
-    yval = bar.get_height()
-    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.04, label, ha='center', va='bottom', fontsize=8)
-
-plt.xlabel('Operation')
-plt.ylabel('Time (ms)')
-plt.title('Mean ± Std Deviation: Classic vs Unified Memory')
-plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
-plt.legend()
-plt.tight_layout()
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.ylim(0, 4)
-plt.savefig("Results/mean_std_classic_vs_unified_zoom_in.png")
-plt.show()
-
-# === Plot 2.3: Mean + Std Error Bars log ===
-
-plt.figure(figsize=(14, 8))
-
-bars_classic_std = plt.bar(index, df['Time_Classic'],
-                           yerr=merged_std['Time_Classic'],
-                           capsize=5,
-                           label='Classic',
-                           width=bar_width,
-                           color='#4B7D74',
-                           ecolor='#B46841',         
-                           alpha=0.8)
-bars_unified_std = plt.bar([i + bar_width for i in index], df['Time_Unified'],
-                           yerr=merged_std['Time_Unified'],
-                           capsize=5,
-                           label='Unified Memory',
-                           width=bar_width,
-                           color='#D9C89E',
-                           ecolor='#B46841',      
-                           alpha=0.8)
-
-for i, bar in enumerate(bars_classic_std):
-    yval = bar.get_height()
-    std = merged_std['Time_Classic'].iloc[i]
-    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    ypos = yval * (1.05 + std / yval)
-    plt.text(bar.get_x() + bar.get_width()/2, ypos, label, ha='center', va='bottom', fontsize=8)
-
-for i, bar in enumerate(bars_unified_std):
-    yval = bar.get_height()
-    std = merged_std['Time_Unified'].iloc[i]
-    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    ypos = yval * (1.05 + std / yval) 
-    plt.text(bar.get_x() + bar.get_width()/2, ypos, label, ha='center', va='bottom', fontsize=8)
-
-
-plt.xlabel('Operation')
-plt.ylabel('Time (ms)')
-plt.title('Mean ± Std Deviation: Classic vs Unified Memory')
-plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
-plt.legend()
-plt.yscale('log') # logarithmic scale
-plt.tight_layout()
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.savefig("Results/mean_std_classic_vs_unified_log.png")
-plt.show()
-
-# === Plot 3.1: Std Deviation Comparison Only ===
-
-plt.figure(figsize=(14, 8))
-
-bars_classic_only_std = plt.bar(index, merged_std['Time_Classic'], width=bar_width, label='Classic STD', color='#1E90FF')
-bars_unified_only_std = plt.bar([i + bar_width for i in index], merged_std['Time_Unified'], width=bar_width, label='Unified STD', color='#FF7F7F')
-
-# Add value labels
-for bar in bars_classic_only_std + bars_unified_only_std:
-    yval = bar.get_height()
-    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
-
-plt.xlabel('Operation')
-plt.ylabel('Standard Deviation (ms)')
-plt.title('Standard Deviation Comparison: Classic vs Unified Memory')
-plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
-plt.legend()
-plt.tight_layout()
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.savefig("Results/std_comparison.png")
-plt.show()
-
-# === Plot 3.2: Std Deviation Comparison Only zoom in ===
-
-plt.figure(figsize=(14, 8))
-
-bars_classic_only_std = plt.bar(index, merged_std['Time_Classic'], width=bar_width, label='Classic STD', color='#1E90FF')
-bars_unified_only_std = plt.bar([i + bar_width for i in index], merged_std['Time_Unified'], width=bar_width, label='Unified STD', color='#FF7F7F')
-
-# Add value labels
-for bar in bars_classic_only_std + bars_unified_only_std:
-    yval = bar.get_height()
-    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.01, label, ha='center', va='bottom', fontsize=8)
-
-plt.xlabel('Operation')
-plt.ylabel('Standard Deviation (ms)')
-plt.title('Standard Deviation Comparison: Classic vs Unified Memory')
-plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
-plt.legend()
-plt.tight_layout()
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.ylim(0, 1)
-plt.savefig("Results/std_comparison_zoom_in.png")
-plt.show()
-
-# === Plot 3.3: Std Deviation Comparison Only log ===
-
-plt.figure(figsize=(14, 8))
-
-bars_classic_only_std = plt.bar(index, merged_std['Time_Classic'], width=bar_width, label='Classic STD', color='#1E90FF')
-bars_unified_only_std = plt.bar([i + bar_width for i in index], merged_std['Time_Unified'], width=bar_width, label='Unified STD', color='#FF7F7F')
-
-# Add value labels
-for bar in bars_classic_only_std + bars_unified_only_std:
-    yval = bar.get_height()
-    label = f'{yval:.3f}'.rstrip('0').rstrip('.')
-    plt.text(bar.get_x() + bar.get_width()/2, yval + 0.5, label, ha='center', va='bottom', fontsize=8)
-
-plt.xlabel('Operation')
-plt.ylabel('Standard Deviation (ms)')
-plt.title('Standard Deviation Comparison: Classic vs Unified Memory')
-plt.xticks([i + bar_width / 2 for i in index], df['Operation'], rotation=15)
-plt.legend()
-plt.yscale('log') # logarithmic scale
-plt.tight_layout()
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.savefig("Results/std_comparison_log.png")
 plt.show()
