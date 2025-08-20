@@ -391,7 +391,7 @@ void mainRun(const std::string &inputFileName,
   }
 
   std::string run_number = argv[13];
-  std::string filename = "Results_MI300X/results_unified" + run_number + ".csv";
+  std::string filename = "Results_W7900/results_unified" + run_number + ".csv";
 
   std::ofstream results(filename);
   if (!results.is_open()) {
@@ -581,7 +581,7 @@ void mainRunNoPrefetch(const std::string &inputFileName,
   }
 
   std::string run_number = argv[13];
-  std::string filename = "Results_MI300X/results_unified_no_prefetch" + run_number + ".csv";
+  std::string filename = "Results_W7900/results_unified_no_prefetch" + run_number + ".csv";
 
   std::ofstream results(filename);
   if (!results.is_open()) {
@@ -673,11 +673,11 @@ int main(int argc, char *argv[]) {
   //////////////////////////////
   // MARK -- test run
   // ////////////////////////////
-  // mainRun(inputFileName, outputFileName, dc, rhoc, outlierDeltaFactor,
-  //         use_accelerator, repeats, verbose, argv);
-
-    mainRunNoPrefetch(inputFileName, outputFileName, dc, rhoc, outlierDeltaFactor,
+  mainRun(inputFileName, outputFileName, dc, rhoc, outlierDeltaFactor,
           use_accelerator, repeats, verbose, argv);
+
+    // mainRunNoPrefetch(inputFileName, outputFileName, dc, rhoc, outlierDeltaFactor,
+    //       use_accelerator, repeats, verbose, argv);
 
   return 0;
 }

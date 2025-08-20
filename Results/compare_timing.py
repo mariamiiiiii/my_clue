@@ -8,7 +8,7 @@ import os
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # Collect all results_classicX.csv files
-classic_files = sorted(glob.glob("Results_MI300X/results_classic*.csv"))
+classic_files = sorted(glob.glob("Results_W7900/results_classic*.csv"))
 classic_dfs = [pd.read_csv(f) for f in classic_files if not f.endswith("results_classic0.csv")]
 
 # Save the order from the first file
@@ -25,12 +25,12 @@ mean_df_c = combined_c.groupby("Operation", sort=False, observed=False)["Time"].
 std_df_c = combined_c.groupby("Operation", sort=False, observed=False)["Time"].std().reset_index()
 
 # Save results to CSV
-mean_df_c.to_csv("Results_MI300X/classic_mean.csv", index=False)
-std_df_c.to_csv("Results_MI300X/classic_std.csv", index=False)
+mean_df_c.to_csv("Results_W7900/classic_mean.csv", index=False)
+std_df_c.to_csv("Results_W7900/classic_std.csv", index=False)
 
 
 # Collect all results_unifiedX.csv files
-unified_files = sorted(glob.glob("Results_MI300X/results_unified[1-9].csv") + glob.glob("Results_MI300X/results_unified10.csv")
+unified_files = sorted(glob.glob("Results_W7900/results_unified[1-9].csv") + glob.glob("Results_W7900/results_unified10.csv")
 )
 unified_dfs = [pd.read_csv(f) for f in unified_files if not f.endswith("results_unified0.csv")]
 
@@ -45,12 +45,12 @@ mean_df_u = combined_u.groupby("Operation", sort=False, observed=False)["Time"].
 std_df_u = combined_u.groupby("Operation", sort=False, observed=False)["Time"].std().reset_index()
 
 # Save results to CSV
-mean_df_u.to_csv("Results_MI300X/unified_mean.csv", index=False)
-std_df_u.to_csv("Results_MI300X/unified_std.csv", index=False)
+mean_df_u.to_csv("Results_W7900/unified_mean.csv", index=False)
+std_df_u.to_csv("Results_W7900/unified_std.csv", index=False)
 
 
 # Collect all results_unified_no_prefetchX.csv files
-unified_no_prefetch_files = sorted(glob.glob("Results_MI300X/results_unified_no_prefetch*.csv"))
+unified_no_prefetch_files = sorted(glob.glob("Results_W7900/results_unified_no_prefetch*.csv"))
 unified_no_prefetch_dfs = [pd.read_csv(f) for f in unified_no_prefetch_files if not f.endswith("results_unified_no_prefetch0.csv")]
 
 # Combine all runs into one DataFrame
@@ -64,21 +64,21 @@ mean_df_u_no_prefetch = combined_u_no_prefetch.groupby("Operation", sort=False, 
 std_df_u_no_prefetch = combined_u_no_prefetch.groupby("Operation", sort=False, observed=False)["Time"].std().reset_index()
 
 # Save results to CSV
-mean_df_u_no_prefetch.to_csv("Results_MI300X/unified_mean_no_prefetch.csv", index=False)
-std_df_u_no_prefetch.to_csv("Results_MI300X/unified_std_no_prefetch.csv", index=False)
+mean_df_u_no_prefetch.to_csv("Results_W7900/unified_mean_no_prefetch.csv", index=False)
+std_df_u_no_prefetch.to_csv("Results_W7900/unified_std_no_prefetch.csv", index=False)
 
 
 # === Load all CSVs (aligned with plotting cell expectations) ===
-classic_mean = pd.read_csv("Results_MI300X/classic_mean.csv")
-classic_std  = pd.read_csv("Results_MI300X/classic_std.csv")
+classic_mean = pd.read_csv("Results_W7900/classic_mean.csv")
+classic_std  = pd.read_csv("Results_W7900/classic_std.csv")
 
 # Unified (Prefetch)
-unified_mean = pd.read_csv("Results_MI300X/unified_mean.csv")
-unified_std  = pd.read_csv("Results_MI300X/unified_std.csv")
+unified_mean = pd.read_csv("Results_W7900/unified_mean.csv")
+unified_std  = pd.read_csv("Results_W7900/unified_std.csv")
 
 # Unified (No Prefetch)
-unified_no_prefetch_mean = pd.read_csv("Results_MI300X/unified_mean_no_prefetch.csv")
-unified_no_prefetch_std  = pd.read_csv("Results_MI300X/unified_std_no_prefetch.csv")
+unified_no_prefetch_mean = pd.read_csv("Results_W7900/unified_mean_no_prefetch.csv")
+unified_no_prefetch_std  = pd.read_csv("Results_W7900/unified_std_no_prefetch.csv")
 
 
 # Merges
@@ -282,7 +282,7 @@ handles, labels = plt.gca().get_legend_handles_labels()
 if "±1σ (std)" not in labels: handles.append(err_proxy); labels.append("±1σ (std)")
 plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 
-plt.savefig("Results_MI300X/approval_linear.png", dpi=300, bbox_inches="tight")
+plt.savefig("Results_W7900/approval_linear.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 
@@ -471,7 +471,7 @@ handles, labels = plt.gca().get_legend_handles_labels()
 if "±1σ (std)" not in labels: handles.append(err_proxy); labels.append("±1σ (std)")
 plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 
-plt.savefig("Results_MI300X/approval_log.png", dpi=300, bbox_inches="tight")
+plt.savefig("Results_W7900/approval_log.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 
@@ -644,6 +644,6 @@ ax.set_ylim(0, 8)                         # pick 4, 6, 8, 10… as you like
 ax.set_autoscale_on(False) 
 ax.set_title("Classic vs Unified (Prefetch / No Prefetch) — Zoomed 0–8 ms")
 
-plt.savefig("Results_MI300X/approval_linear_zoom_in.png", dpi=300, bbox_inches="tight")
+plt.savefig("Results_W7900/approval_linear_zoom_in.png", dpi=300, bbox_inches="tight")
 
 plt.show()
