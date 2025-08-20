@@ -1,14 +1,21 @@
+#! /usr/bin/env python3
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import warnings
 import glob
 import os
+import sys
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
+results = 'Results'
+if len(sys.argv) > 1:
+  results = sys.argv[1]
+
 # Collect all results_classicX.csv files
-classic_files = sorted(glob.glob("../gitlab_clue/Results/results_classic*.csv"))
+classic_files = sorted(glob.glob(f"{results}/results_classic*.csv"))
 classic_dfs = [pd.read_csv(f) for f in classic_files if not f.endswith("results_classic0.csv")]
 
 # Save the order from the first file
@@ -25,12 +32,11 @@ mean_df_c = combined_c.groupby("Operation", sort=False, observed=False)["Time"].
 std_df_c = combined_c.groupby("Operation", sort=False, observed=False)["Time"].std().reset_index()
 
 # Save results to CSV
-mean_df_c.to_csv("../gitlab_clue/Results/classic_mean.csv", index=False)
-std_df_c.to_csv("../gitlab_clue/Results/classic_std.csv", index=False)
-
+mean_df_c.to_csv(f"{results}/classic_mean.csv", index=False)
+std_df_c.to_csv(f"{results}/classic_std.csv", index=False)
 
 # Collect all results_unifiedX.csv files
-unified_files = sorted(glob.glob("Results/results_unified[1-9].csv") + glob.glob("Results/results_unified10.csv")
+unified_files = sorted(glob.glob(f"{results}/results_unified[1-9].csv") + glob.glob(f"{results}/results_unified10.csv")
 )
 unified_dfs = [pd.read_csv(f) for f in unified_files if not f.endswith("results_unified0.csv")]
 
@@ -45,12 +51,11 @@ mean_df_u = combined_u.groupby("Operation", sort=False, observed=False)["Time"].
 std_df_u = combined_u.groupby("Operation", sort=False, observed=False)["Time"].std().reset_index()
 
 # Save results to CSV
-mean_df_u.to_csv("Results/unified_mean.csv", index=False)
-std_df_u.to_csv("Results/unified_std.csv", index=False)
-
+mean_df_u.to_csv(f"{results}/unified_mean.csv", index=False)
+std_df_u.to_csv(f"{results}/unified_std.csv", index=False)
 
 # Collect all results_unified_no_prefetchX.csv files
-unified_no_prefetch_files = sorted(glob.glob("Results/results_unified_no_prefetch*.csv"))
+unified_no_prefetch_files = sorted(glob.glob(f"{results}/results_unified_no_prefetch*.csv"))
 unified_no_prefetch_dfs = [pd.read_csv(f) for f in unified_no_prefetch_files if not f.endswith("results_unified_no_prefetch0.csv")]
 
 # Combine all runs into one DataFrame
@@ -64,22 +69,20 @@ mean_df_u_no_prefetch = combined_u_no_prefetch.groupby("Operation", sort=False, 
 std_df_u_no_prefetch = combined_u_no_prefetch.groupby("Operation", sort=False, observed=False)["Time"].std().reset_index()
 
 # Save results to CSV
-mean_df_u_no_prefetch.to_csv("Results/unified_mean_no_prefetch.csv", index=False)
-std_df_u_no_prefetch.to_csv("Results/unified_std_no_prefetch.csv", index=False)
-
+mean_df_u_no_prefetch.to_csv(f"{results}/unified_mean_no_prefetch.csv", index=False)
+std_df_u_no_prefetch.to_csv(f"{results}/unified_std_no_prefetch.csv", index=False)
 
 # === Load all CSVs (aligned with plotting cell expectations) ===
-classic_mean = pd.read_csv("../gitlab_clue/Results/classic_mean.csv")
-classic_std  = pd.read_csv("../gitlab_clue/Results/classic_std.csv")
+classic_mean = pd.read_csv(f"{results}/classic_mean.csv")
+classic_std  = pd.read_csv(f"{results}/classic_std.csv")
 
 # Unified (Prefetch)
-unified_mean = pd.read_csv("Results/unified_mean.csv")
-unified_std  = pd.read_csv("Results/unified_std.csv")
+unified_mean = pd.read_csv(f"{results}/unified_mean.csv")
+unified_std  = pd.read_csv(f"{results}/unified_std.csv")
 
 # Unified (No Prefetch)
-unified_no_prefetch_mean = pd.read_csv("Results/unified_mean_no_prefetch.csv")
-unified_no_prefetch_std  = pd.read_csv("Results/unified_std_no_prefetch.csv")
-
+unified_no_prefetch_mean = pd.read_csv(f"{results}/unified_mean_no_prefetch.csv")
+unified_no_prefetch_std  = pd.read_csv(f"{results}/unified_std_no_prefetch.csv")
 
 # Merges
 merged_mean = classic_mean.merge(unified_mean, on='Operation', suffixes=('_Classic', '_Unified'))
@@ -95,15 +98,7 @@ merged_std = merged_std.merge(
 )
 
 # Save merged mean for the base bar chart 
-merged_mean.to_csv("mean_timing_comparison.csv", index=False)
-
-
-
-
-
-
-
-
+merged_mean.to_csv(f"{results}/mean_timing_comparison.csv", index=False)
 
 # 1.approval linear ===
 
@@ -122,7 +117,6 @@ def fmt_num(v):
     if not np.isfinite(v):
         return ""
     return f"{int(round(v))}" if v > 10 else f"{v:.2f}"
-
 
 # Column for the no-prefetch series
 COL_U_NP = "Time_NoPrefetch"
@@ -219,7 +213,6 @@ for i, (kind, key, pretty) in enumerate(groups):
         if np.isfinite(n_val):
             plt.annotate(fmt_num(n_val), (xn, y_at_std_top(n_val, n_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
-
 
         add_errbar(xc, c_val, c_std, c_err)
         add_errbar(xu, u_val, u_std, u_err)
@@ -282,15 +275,8 @@ handles, labels = plt.gca().get_legend_handles_labels()
 if "±1σ (std)" not in labels: handles.append(err_proxy); labels.append("±1σ (std)")
 plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 
-plt.savefig("Results/approval_linear.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{results}/approval_linear.png", dpi=300, bbox_inches="tight")
 plt.show()
-
-
-
-
-
-
-
 
 # 1.2 approval log ===
 
@@ -309,7 +295,6 @@ def fmt_num(v):
     if not np.isfinite(v):
         return ""
     return f"{int(round(v))}" if v > 10 else f"{v:.2f}"
-
 
 # Column for the no-prefetch series
 COL_U_NP = "Time_NoPrefetch"
@@ -407,7 +392,6 @@ for i, (kind, key, pretty) in enumerate(groups):
             plt.annotate(fmt_num(n_val), (xn, y_at_std_top(n_val, n_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
 
-
         add_errbar(xc, c_val, c_std, c_err)
         add_errbar(xu, u_val, u_std, u_err)
         add_errbar(xn, n_val, n_std, n_err)
@@ -457,7 +441,6 @@ for i, (kind, key, pretty) in enumerate(groups):
             plt.annotate(fmt_num(n_exe), (xn, y_at_std_top(n_exe, n_exe_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
 
-
 # Axes/legend
 plt.xticks(x, [g[2] for g in groups], rotation=15, ha="right", rotation_mode="anchor")
 plt.ylabel("Time (ms)")
@@ -471,12 +454,8 @@ handles, labels = plt.gca().get_legend_handles_labels()
 if "±1σ (std)" not in labels: handles.append(err_proxy); labels.append("±1σ (std)")
 plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 
-plt.savefig("Results/approval_log.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{results}/approval_log.png", dpi=300, bbox_inches="tight")
 plt.show()
-
-
-
-
 
 # 1.3 approval linear zoom in ===
 
@@ -640,10 +619,10 @@ plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 # --- Also save a zoomed-in version (linear 0–10 ms) ---
 ax = plt.gca()
 ax.set_yscale('linear')
-ax.set_ylim(0, 4)                         # pick 4, 6, 8, 10… as you like
+ax.set_ylim(0, 8)                         # pick 4, 6, 8, 10… as you like
 ax.set_autoscale_on(False) 
-ax.set_title("Classic vs Unified (Prefetch / No Prefetch) — Zoomed 0–4 ms")
+ax.set_title("Classic vs Unified (Prefetch / No Prefetch) — Zoomed 0–8 ms")
 
-plt.savefig("Results/approval_linear_zoom_in.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{results}/approval_linear_zoom_in.png", dpi=300, bbox_inches="tight")
 
 plt.show()
