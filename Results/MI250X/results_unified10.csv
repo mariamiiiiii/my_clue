@@ -1,0 +1,9 @@
+Operation,Time
+allocateInputData,0.034958
+readDataFromFile,39.3585
+allocateOutputData,0.030669
+kernelSubmission,1.70009
+kernelExecution,22.1137
+writeDataToFile,103.682
+freeInputData,0.604217
+freeOutputData,0.616631
