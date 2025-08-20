@@ -1,15 +1,21 @@
+#! /usr/bin/env python3
+
 import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 import warnings
-import math
 import glob
 import os
+import sys
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
+results = 'Results'
+if len(sys.argv) > 1:
+  results = sys.argv[1]
+
 # Collect all classicX.csv files
-classic_files = sorted(glob.glob("../gitlab_clue/Results/results_classic*.csv"))
+classic_files = sorted(glob.glob(f"{results}/results_classic*.csv"))
 classic_dfs = [pd.read_csv(f) for f in classic_files if not f.endswith("results_classic0.csv")]
 
 # Save the order from the first file
@@ -26,12 +32,11 @@ mean_df_c = combined_c.groupby("Operation", sort=False, observed=False)["Time"].
 std_df_c = combined_c.groupby("Operation", sort=False, observed=False)["Time"].std().reset_index()
 
 # Save results to CSV
-mean_df_c.to_csv("../gitlab_clue/Results/classic_mean.csv", index=False)
-std_df_c.to_csv("../gitlab_clue/Results/classic_std.csv", index=False)
-
+mean_df_c.to_csv(f"{results}/classic_mean.csv", index=False)
+std_df_c.to_csv(f"{results}/classic_std.csv", index=False)
 
 # Collect all classicX.csv files
-unified_files = sorted(glob.glob("Results/results_unified*.csv"))
+unified_files = sorted(glob.glob(f"{results}/results_unified*.csv"))
 unified_dfs = [pd.read_csv(f) for f in unified_files if not f.endswith("results_unified0.csv")]
 
 # Combine all runs into one DataFrame
@@ -45,27 +50,21 @@ mean_df_u = combined_u.groupby("Operation", sort=False, observed=False)["Time"].
 std_df_u = combined_u.groupby("Operation", sort=False, observed=False)["Time"].std().reset_index()
 
 # Save results to CSV
-mean_df_u.to_csv("Results/unified_mean.csv", index=False)
-std_df_u.to_csv("Results/unified_std.csv", index=False)
-
-
-
-
-
+mean_df_u.to_csv(f"{results}/unified_mean.csv", index=False)
+std_df_u.to_csv(f"{results}/unified_std.csv", index=False)
 
 # === Load all CSVs ===
-classic_mean = pd.read_csv("../gitlab_clue/Results/classic_mean.csv")
-unified_mean = pd.read_csv("Results/unified_mean.csv")
-classic_std = pd.read_csv("../gitlab_clue/Results/classic_std.csv")
-unified_std = pd.read_csv("Results/unified_std.csv")
+classic_mean = pd.read_csv(f"{results}/classic_mean.csv")
+unified_mean = pd.read_csv(f"{results}/unified_mean.csv")
+classic_std = pd.read_csv(f"{results}/classic_std.csv")
+unified_std = pd.read_csv(f"{results}/unified_std.csv")
 
 # === Merge mean and std separately ===
 merged_mean = classic_mean.merge(unified_mean, on='Operation', suffixes=('_Classic', '_Unified'))
 merged_std = classic_std.merge(unified_std, on='Operation', suffixes=('_Classic', '_Unified'))
 
 # Save merged mean for the base bar chart
-merged_mean.to_csv("Results/mean_timing_comparison.csv", index=False)
-
+merged_mean.to_csv(f"{results}/mean_timing_comparison.csv", index=False)
 
 # 1.approval log ===
 
@@ -170,9 +169,6 @@ for i, (kind, key, pretty) in enumerate(groups):
             plt.annotate(f"{u_val:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
 
-
-
-
         # std as error bars at the bar top
         add_errbar(xc, c_val, c_std, color="#2f5597")   # classic whisker color
         add_errbar(xu, u_val, u_std, color="#a15c00")   # unified whisker color
@@ -218,8 +214,6 @@ for i, (kind, key, pretty) in enumerate(groups):
             plt.annotate(f"{u_exe:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
 
-
-
 # Axes/legend
 labels = [pretty for _,_,pretty in groups]
 plt.xticks(x, labels, rotation=15, ha="right", rotation_mode="anchor")
@@ -236,14 +230,8 @@ if "±1σ (std)" not in labels:
     handles.append(err_proxy); labels.append("±1σ (std)")
 plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 
-plt.savefig("Results/approval_log.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{results}/approval_log.png", dpi=300, bbox_inches="tight")
 plt.show()
-
-
-
-
-
-
 
 # 1.2 approval linear ===
 
@@ -348,9 +336,6 @@ for i, (kind, key, pretty) in enumerate(groups):
             plt.annotate(f"{u_val:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
 
-
-
-
         # std as error bars at the bar top
         add_errbar(xc, c_val, c_std, color="#2f5597")   # classic whisker color
         add_errbar(xu, u_val, u_std, color="#a15c00")   # unified whisker color
@@ -396,8 +381,6 @@ for i, (kind, key, pretty) in enumerate(groups):
             plt.annotate(f"{u_exe:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
 
-
-
 # Axes/legend
 labels = [pretty for _,_,pretty in groups]
 plt.xticks(x, labels, rotation=15, ha="right", rotation_mode="anchor")
@@ -413,10 +396,8 @@ if "±1σ (std)" not in labels:
     handles.append(err_proxy); labels.append("±1σ (std)")
 plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 
-plt.savefig("Results/approval_linear.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{results}/approval_linear.png", dpi=300, bbox_inches="tight")
 plt.show()
-
-
 
 # 1.3 approval linear zoomed in ===
 
@@ -521,9 +502,6 @@ for i, (kind, key, pretty) in enumerate(groups):
             plt.annotate(f"{u_val:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
 
-
-
-
         # std as error bars at the bar top
         add_errbar(xc, c_val, c_std, color="#2f5597")   # classic whisker color
         add_errbar(xu, u_val, u_std, color="#a15c00")   # unified whisker color
@@ -569,8 +547,6 @@ for i, (kind, key, pretty) in enumerate(groups):
             plt.annotate(f"{u_exe:.2f}", xy=(xu, ylab_u), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
 
-
-
 # Axes/legend
 labels = [pretty for _,_,pretty in groups]
 plt.xticks(x, labels, rotation=15, ha="right", rotation_mode="anchor")
@@ -586,14 +562,13 @@ if "±1σ (std)" not in labels:
     handles.append(err_proxy); labels.append("±1σ (std)")
 plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 
-
 # --- Also save a zoomed-in version (linear 0–10 ms) ---
 ax = plt.gca()
 ax.set_yscale('linear')
-ax.set_ylim(0, 4)                         # pick 4, 6, 8, 10… as you like
+ax.set_ylim(0, 8)                         # pick 4, 6, 8, 10… as you like
 ax.set_autoscale_on(False) 
-ax.set_title("Classic vs Unified Memory — Zoomed 0–4 ms")
+ax.set_title("Classic vs Unified Memory — Zoomed 0–8 ms")
 
-plt.savefig("Results/approval_linear_zoom_in.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{results}/approval_linear_zoom_in.png", dpi=300, bbox_inches="tight")
 
 plt.show()
