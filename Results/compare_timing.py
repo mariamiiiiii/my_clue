@@ -590,9 +590,9 @@ plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 # --- Also save a zoomed-in version (linear 0–10 ms) ---
 ax = plt.gca()
 ax.set_yscale('linear')
-ax.set_ylim(0, 4)                         # pick 4, 6, 8, 10… as you like
+ax.set_ylim(0, 8)                         # pick 4, 6, 8, 10… as you like
 ax.set_autoscale_on(False) 
-ax.set_title("Classic vs Unified Memory — Zoomed 0–4 ms")
+ax.set_title("Classic vs Unified Memory — Zoomed 0–8 ms")
 
 plt.savefig("Results/approval_linear_zoom_in.png", dpi=300, bbox_inches="tight")
 
