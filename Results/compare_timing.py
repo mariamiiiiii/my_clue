@@ -9,7 +9,7 @@ import os
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # Collect all classicX.csv files
-classic_files = sorted(glob.glob("Results_MI300X/results_classic*.csv"))
+classic_files = sorted(glob.glob("Results_W7900/results_classic*.csv"))
 classic_dfs = [pd.read_csv(f) for f in classic_files if not f.endswith("results_classic0.csv")]
 
 # Save the order from the first file
@@ -26,12 +26,12 @@ mean_df_c = combined_c.groupby("Operation", sort=False, observed=False)["Time"].
 std_df_c = combined_c.groupby("Operation", sort=False, observed=False)["Time"].std().reset_index()
 
 # Save results to CSV
-mean_df_c.to_csv("Results_MI300X/classic_mean.csv", index=False)
-std_df_c.to_csv("Results_MI300X/classic_std.csv", index=False)
+mean_df_c.to_csv("Results_W7900/classic_mean.csv", index=False)
+std_df_c.to_csv("Results_W7900/classic_std.csv", index=False)
 
 
 # Collect all classicX.csv files
-unified_files = sorted(glob.glob("Results_MI300X/results_unified*.csv"))
+unified_files = sorted(glob.glob("Results_W7900/results_unified*.csv"))
 unified_dfs = [pd.read_csv(f) for f in unified_files if not f.endswith("results_unified0.csv")]
 
 # Combine all runs into one DataFrame
@@ -45,8 +45,8 @@ mean_df_u = combined_u.groupby("Operation", sort=False, observed=False)["Time"].
 std_df_u = combined_u.groupby("Operation", sort=False, observed=False)["Time"].std().reset_index()
 
 # Save results to CSV
-mean_df_u.to_csv("Results_MI300X/unified_mean.csv", index=False)
-std_df_u.to_csv("Results_MI300X/unified_std.csv", index=False)
+mean_df_u.to_csv("Results_W7900/unified_mean.csv", index=False)
+std_df_u.to_csv("Results_W7900/unified_std.csv", index=False)
 
 
 
@@ -54,17 +54,17 @@ std_df_u.to_csv("Results_MI300X/unified_std.csv", index=False)
 
 
 # === Load all CSVs ===
-classic_mean = pd.read_csv("Results_MI300X/classic_mean.csv")
-unified_mean = pd.read_csv("Results_MI300X/unified_mean.csv")
-classic_std = pd.read_csv("Results_MI300X/classic_std.csv")
-unified_std = pd.read_csv("Results_MI300X/unified_std.csv")
+classic_mean = pd.read_csv("Results_W7900/classic_mean.csv")
+unified_mean = pd.read_csv("Results_W7900/unified_mean.csv")
+classic_std = pd.read_csv("Results_W7900/classic_std.csv")
+unified_std = pd.read_csv("Results_W7900/unified_std.csv")
 
 # === Merge mean and std separately ===
 merged_mean = classic_mean.merge(unified_mean, on='Operation', suffixes=('_Classic', '_Unified'))
 merged_std = classic_std.merge(unified_std, on='Operation', suffixes=('_Classic', '_Unified'))
 
 # Save merged mean for the base bar chart
-merged_mean.to_csv("Results_MI300X/mean_timing_comparison.csv", index=False)
+merged_mean.to_csv("Results_W7900/mean_timing_comparison.csv", index=False)
 
 
 # 1.approval log ===
@@ -236,7 +236,7 @@ if "±1σ (std)" not in labels:
     handles.append(err_proxy); labels.append("±1σ (std)")
 plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 
-plt.savefig("Results_MI300X/approval_log.png", dpi=300, bbox_inches="tight")
+plt.savefig("Results_W7900/approval_log.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 
@@ -413,7 +413,7 @@ if "±1σ (std)" not in labels:
     handles.append(err_proxy); labels.append("±1σ (std)")
 plt.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1))
 
-plt.savefig("Results_MI300X/approval_linear.png", dpi=300, bbox_inches="tight")
+plt.savefig("Results_W7900/approval_linear.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 
@@ -594,6 +594,6 @@ ax.set_ylim(0, 8)                         # pick 4, 6, 8, 10… as you like
 ax.set_autoscale_on(False) 
 ax.set_title("Classic vs Unified Memory — Zoomed 0–8 ms")
 
-plt.savefig("Results_MI300X/approval_linear_zoom_in.png", dpi=300, bbox_inches="tight")
+plt.savefig("Results_W7900/approval_linear_zoom_in.png", dpi=300, bbox_inches="tight")
 
 plt.show()

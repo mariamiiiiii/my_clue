@@ -437,7 +437,7 @@ void mainRun(const std::string &inputFileName,
   }
 
   std::string run_number = argv[13];
-  std::string filename = "Results_MI300X/results_unified" + run_number + ".csv";
+  std::string filename = "Results_W7900/results_unified" + run_number + ".csv";
 
   std::ofstream results(filename);
   if (!results.is_open()) {
