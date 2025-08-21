@@ -74,12 +74,15 @@ FS_TOP    = FS_BASE                        # numbers on bar tops
 TOP_DY    = 1                              # points offset for top labels
 EPS       = 1e-6                           # for log-scale safety
 
-def fmt_pm(mean, std):
-    if np.isfinite(mean) and np.isfinite(std):
-        return f"{mean:.2f} ± {std:.2f}"
-    elif np.isfinite(mean):
-        return f"{mean:.2f}"
-    return ""
+def fmt_num(v):
+    """Show no decimals if value > 10, else 2 decimals."""
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return ""
+    if not np.isfinite(v):
+        return ""
+    return f"{int(round(v))}" if v > 10 else f"{v:.2f}"
 
 def y_at_std_top(mean, std):
     """Return y for label at top of ±1σ (mean+std). Falls back to mean if std missing."""
