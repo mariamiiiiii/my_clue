@@ -1,0 +1,9 @@
+Operation,Time_Classic,Time_Unified,Time_NoPrefetch
+readDataFromFile,63.13137,32.29852,33.46745
+allocateInputData,1.0109457000000002,0.0830114,0.0855315
+allocateOutputData,3.398829,0.0517949,0.055106
+kernelSubmission,0.9404755,0.07678554,0.02441415
+kernelExecution,0.942554,1.702244,0.7001282
+writeDataToFile,100.49854,91.47248,91.76821
+freeInputData,0.1294971,0.4046017,0.3928489
+freeOutputData,0.2734966,0.1625517,0.1572067
