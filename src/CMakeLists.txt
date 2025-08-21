@@ -3,7 +3,7 @@ if(CMAKE_CUDA_COMPILER)
   add_subdirectory(clue)
 
   # Native C++ CLUE and CUDA CLUE using ALPAKA
-  add_subdirectory(clue_cuda_alpaka)
+  #add_subdirectory(clue_cuda_alpaka)
 
 endif(CMAKE_CUDA_COMPILER)
 

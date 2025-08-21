@@ -381,7 +381,7 @@ void mainRun(const std::string &inputFileName,
     }
 
     std::string run_number = argv[13];
-    std::string filename = "Results_L40S/results_unified" + run_number + ".csv";
+    std::string filename = "Results_H100/results_unified" + run_number + ".csv";
 
     std::ofstream results(filename);
     if (!results.is_open()) {
@@ -568,7 +568,7 @@ void mainRunNoPrefetch(const std::string &inputFileName,
     }
 
     std::string run_number = argv[13];
-    std::string filename = "Results_L40S/results_unified_no_prefetch" + run_number + ".csv";
+    std::string filename = "Results_H100/results_unified_no_prefetch" + run_number + ".csv";
 
     std::ofstream results(filename);
     if (!results.is_open()) {
