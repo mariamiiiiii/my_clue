@@ -424,7 +424,7 @@ void mainRun(const std::string &inputFileName,
     }
 
     std::string run_number = argv[13];
-    std::string filename = "Results_L4/results_unified" + run_number + ".csv";
+    std::string filename = "Results_T4/results_unified" + run_number + ".csv";
 
     std::ofstream results(filename);
     if (!results.is_open()) {
