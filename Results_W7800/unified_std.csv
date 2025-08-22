@@ -1,7 +1,7 @@
 Operation,Time
-allocateInputData,0.02850931155877942
-readDataFromFile,0.20980319905409806
-allocateOutputData,0.015143720438224905
+allocateInputData,0.028509311558779407
+readDataFromFile,0.2098031990540978
+allocateOutputData,0.015143720438224895
 kernelSubmission,0.02342406258743345
 kernelExecution,0.19288923064517857
 writeDataToFile,0.5456530160174058
