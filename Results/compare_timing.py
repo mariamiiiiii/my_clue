@@ -141,9 +141,19 @@ merged_mean.to_csv(f"{results}/mean_timing_comparison.csv", index=False)
 
 # === plotting (refactored to avoid repetition) ===
 
+plt.rcParams.update({
+    "font.size": 14,               # default font size
+    "axes.titlesize": 20,          # bigger title
+    "axes.labelsize": 18,          # x and y labels
+    "xtick.labelsize": 16,         # tick labels
+    "ytick.labelsize": 16,
+    "legend.fontsize": 16,
+    "axes.linewidth": 1.5          # thicker border
+})
+
 # small, consistent fonts (follow your rcParams)
 FS_BASE   = plt.rcParams['font.size']      # e.g. 8 from your rcParams block
-FS_TOP    = FS_BASE * 0.8                  # numbers on bar tops
+FS_TOP    = FS_BASE                        # numbers on bar tops
 TOP_DY    = 1                              # points offset for top labels
 EPS       = 1e-6                           # for log-scale safety
 
@@ -259,7 +269,7 @@ for kind, key, pretty in groups_all:
 groups = valid_groups
 
 x = np.arange(len(groups))
-bar_width = 0.22
+bar_width = 0.25
 OFFSETS = (-bar_width, 0.0, +bar_width)  # Classic, Unified, NoPrefetch
 
 # colors & labels
@@ -360,7 +370,7 @@ def draw_plot(ax):
     ax.legend(handles, lbls, loc="upper left", bbox_to_anchor=(1, 1))
 
 def make_variant(scale="linear", ylim=None, suffix="linear"):
-    fig, ax = plt.subplots(figsize=(14, 8), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(22, 10), constrained_layout=True)
     draw_plot(ax)
     ax.set_yscale(scale)
     if ylim is not None:
