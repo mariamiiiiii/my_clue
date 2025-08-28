@@ -101,13 +101,15 @@ merged_std = merged_std.merge(
 # Save merged mean for the base bar chart 
 merged_mean.to_csv(f"{results}/mean_timing_comparison.csv", index=False)
 
+gpu_name = results.replace("Results_", "")
+
 plt.rcParams.update({
-    "font.size": 14,               # default font size
-    "axes.titlesize": 20,          # bigger title
-    "axes.labelsize": 18,          # x and y labels
-    "xtick.labelsize": 16,         # tick labels
-    "ytick.labelsize": 16,
-    "legend.fontsize": 16,
+    "font.size": 15,               # default font size
+    "axes.titlesize": 24,          # bigger title
+    "axes.labelsize": 20,          # x and y labels
+    "xtick.labelsize": 18,         # tick labels
+    "ytick.labelsize": 18,
+    "legend.fontsize": 18,
     "axes.linewidth": 1.5          # thicker border
 })
 
@@ -202,13 +204,22 @@ def get_std(op, col):
 SIMPLE_OPS = ["readDataFromFile", "allocateInputData", "allocateOutputData",
               "writeDataToFile", "freeInputData", "freeOutputData"]
 
+OP_NAMES = {
+    "readDataFromFile": "Read input file",
+    "allocateInputData": "Allocate input",
+    "allocateOutputData": "Allocate output",
+    "writeDataToFile": "Write output file",
+    "freeInputData": "Free input data",
+    "freeOutputData": "Free output data"
+}
+
 groups = []
 for op in SIMPLE_OPS[:3]: groups.append(("simple", op, op))
-groups.append(("kernel", "Kernel", "Kernel"))   # single stacked "Kernel" group
+groups.append(("kernel", "Kernel", "Copy/Prefetch + Kernel"))   # single stacked "Kernel" group
 for op in SIMPLE_OPS[3:]: groups.append(("simple", op, op))
 
 x = np.arange(len(groups))
-bar_width = 0.25
+bar_width = 0.26
 OFFSETS = (-bar_width, 0.0, +bar_width)  # Classic, Unified, NoPrefetch
 
 # Colors
@@ -309,10 +320,10 @@ def draw_plot(ax):
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
             ax.annotate(fmt_mean_with_error(n_exe, n_exe_std), (xn, y_at_std_top(n_exe, n_exe_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
-    labels = [pretty for _,_,pretty in groups]
+    labels = [OP_NAMES.get(pretty, pretty) for _, _, pretty in groups]
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=10, ha="center", rotation_mode="anchor")
-    ax.tick_params(axis="x", pad=10) 
+    ax.tick_params(axis="x", pad=20) 
     ax.set_ylabel("Time (ms)")
     ax.set_title("Classic vs Unified (Prefetch / No Prefetch)")
     ax.grid(axis="y", linestyle="--", alpha=0.6)
@@ -322,7 +333,7 @@ def draw_plot(ax):
     handles, lbls = ax.get_legend_handles_labels()
     if "±1σ (std)" not in lbls:
         handles.append(err_proxy); lbls.append("±1σ (std)")
-    ax.legend(handles, lbls, loc="upper left", bbox_to_anchor=(1, 1))
+    ax.legend(handles, lbls, loc="upper left", bbox_to_anchor=(1, 1), title=f"{gpu_name} GPU\n───────────", title_fontsize=20)
 
 def make_variant(scale="linear", ylim=None, suffix="linear"):
     fig, ax = plt.subplots(figsize=(22, 10), constrained_layout=True)
