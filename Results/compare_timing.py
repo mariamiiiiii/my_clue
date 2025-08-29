@@ -138,16 +138,17 @@ merged_std = merged_std.merge(
 # Save for plotting
 merged_mean.to_csv(f"{results}/mean_timing_comparison.csv", index=False)
 
+gpu_name = results.replace("Results_", "")
 
 # === plotting (refactored to avoid repetition) ===
 
 plt.rcParams.update({
-    "font.size": 14,               # default font size
-    "axes.titlesize": 20,          # bigger title
-    "axes.labelsize": 18,          # x and y labels
-    "xtick.labelsize": 16,         # tick labels
-    "ytick.labelsize": 16,
-    "legend.fontsize": 16,
+    "font.size": 15,               # default font size
+    "axes.titlesize": 24,          # bigger title
+    "axes.labelsize": 20,          # x and y labels
+    "xtick.labelsize": 18,         # tick labels
+    "ytick.labelsize": 18,
+    "legend.fontsize": 18,
     "axes.linewidth": 1.5          # thicker border
 })
 
@@ -238,16 +239,23 @@ def get_std(op, col):
         return np.nan
 
 # X-axis order
-SIMPLE_OPS = ["readDataFromFile", "allocateInputData", "allocateOutputData",
-              "writeDataToFile", "freeInputData", "freeOutputData"]
-STACK_OPS  = [("CopyToDevice", "CopyToDevice/Prefetch"),
+SIMPLE_OPS = [
+    ("readDataFromFile", "Read input file"),
+    ("allocateInputData", "Allocate input"),
+    ("allocateOutputData", "Allocate output"),
+    ("writeDataToFile", "Write output file"),
+    ("freeInputData", "Free input"),
+    ("freeOutputData", "Free output")
+]
+
+STACK_OPS  = [("CopyToDevice", "Copy to device/Prefetch"),
               ("MakeClusters", "Kernel"),
-              ("CopyToHost",   "CopyToHost/Prefetch")]
+              ("CopyToHost",   "Copy to host/Prefetch")]
 
 groups_all = []
-for op in SIMPLE_OPS[:3]: groups_all.append(("simple", op, op))
+for key, pretty in SIMPLE_OPS[:3]: groups_all.append(("simple", key, pretty))
 for key, pretty in STACK_OPS: groups_all.append(("stack", key, pretty))
-for op in SIMPLE_OPS[3:]: groups_all.append(("simple", op, op))
+for key, pretty in SIMPLE_OPS[3:]: groups_all.append(("simple", key, pretty))
 
 # Filter groups: keep only ops with at least one valid value
 valid_groups = []
@@ -314,9 +322,9 @@ def draw_plot(ax):
 
             ax.annotate(fmt_mean_with_error(c_val, c_std), (xc, y_at_std_top(c_val, c_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
-            ax.annotate(fmt_mean_with_error(u_val, u_std), (xu, y_at_std_top(u_val, u_std)), xytext=(0, TOP_DY),
+            ax.annotate(fmt_mean_with_error(u_val, u_std), (xu, y_at_std_top(u_val, u_std)), xytext=(0, TOP_DY + 20),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
-            ax.annotate(fmt_mean_with_error(n_val, n_std), (xn, y_at_std_top(n_val, n_std)), xytext=(0, TOP_DY),
+            ax.annotate(fmt_mean_with_error(n_val, n_std), (xn, y_at_std_top(n_val, n_std)), xytext=(0, TOP_DY - 2),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
 
             add_errbar(xc, c_val, c_std, c_err)
@@ -349,15 +357,18 @@ def draw_plot(ax):
 
             ax.annotate(fmt_mean_with_error(c_exe, c_exe_std), (xc, y_at_std_top(c_exe, c_exe_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
-            ax.annotate(fmt_mean_with_error(u_exe, u_exe_std), (xu, y_at_std_top(u_exe, u_exe_std)), xytext=(0, TOP_DY),
+            ax.annotate(f"{c_sub:.3f}", (xc, c_sub), xytext=(0, -10), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
+            ax.annotate(fmt_mean_with_error(u_exe, u_exe_std), (xu, y_at_std_top(u_exe, u_exe_std)), xytext=(0, TOP_DY + 10),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+            ax.annotate(f"{u_sub:.3f}", (xu, u_sub), xytext=(0, -50), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
             ax.annotate(fmt_mean_with_error(n_exe, n_exe_std), (xn, y_at_std_top(n_exe, n_exe_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
+            ax.annotate(f"{n_sub:.3f}", (xn, n_sub), xytext=(0, 0), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
 
     labels = [pretty for _,_,pretty in groups]
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=10, ha="center", rotation_mode="anchor")
-    ax.tick_params(axis="x", pad=10) 
+    ax.tick_params(axis="x", pad=20) 
     ax.set_ylabel("Time (ms)")
     ax.set_title("Classic vs Unified (Prefetch / No Prefetch)")
     ax.grid(axis="y", linestyle="--", alpha=0.6)
@@ -367,7 +378,7 @@ def draw_plot(ax):
     handles, lbls = ax.get_legend_handles_labels()
     if "±1σ (std)" not in lbls:
         handles.append(err_proxy); lbls.append("±1σ (std)")
-    ax.legend(handles, lbls, loc="upper left", bbox_to_anchor=(1, 1))
+    ax.legend(handles, lbls, loc="upper left", bbox_to_anchor=(1, 1), title=f"{gpu_name} GPU\n───────────", title_fontsize=20)
 
 def make_variant(scale="linear", ylim=None, suffix="linear"):
     fig, ax = plt.subplots(figsize=(22, 10), constrained_layout=True)
