@@ -148,7 +148,7 @@ plt.rcParams.update({
     "axes.labelsize": 20,          # x and y labels
     "xtick.labelsize": 18,         # tick labels
     "ytick.labelsize": 18,
-    "legend.fontsize": 18,
+    "legend.fontsize": 16,
     "axes.linewidth": 1.5          # thicker border
 })
 
@@ -378,7 +378,12 @@ def draw_plot(ax):
     handles, lbls = ax.get_legend_handles_labels()
     if "±1σ (std)" not in lbls:
         handles.append(err_proxy); lbls.append("±1σ (std)")
-    ax.legend(handles, lbls, loc="upper left", bbox_to_anchor=(1, 1), title=f"{gpu_name} GPU\n───────────", title_fontsize=20)
+    leg = ax.legend(handles, lbls, loc="upper right", title=f"{gpu_name} GPU\n───────────────", title_fontsize=20)
+
+    leg.get_title().set_color("black")
+    leg.get_title().set_bbox(dict(facecolor="#f9d6da",
+                                edgecolor="none",
+                                boxstyle="round,pad=0.3"))
 
 def make_variant(scale="linear", ylim=None, suffix="linear"):
     fig, ax = plt.subplots(figsize=(22, 10), constrained_layout=True)
