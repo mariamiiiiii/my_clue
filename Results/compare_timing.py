@@ -148,7 +148,7 @@ plt.rcParams.update({
     "axes.labelsize": 20,          # x and y labels
     "xtick.labelsize": 18,         # tick labels
     "ytick.labelsize": 18,
-    "legend.fontsize": 18,
+    "legend.fontsize": 16,
     "axes.linewidth": 1.5          # thicker border
 })
 
@@ -322,7 +322,7 @@ def draw_plot(ax):
 
             ax.annotate(fmt_mean_with_error(c_val, c_std), (xc, y_at_std_top(c_val, c_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
-            ax.annotate(fmt_mean_with_error(u_val, u_std), (xu, y_at_std_top(u_val, u_std)), xytext=(0, TOP_DY + 20),
+            ax.annotate(fmt_mean_with_error(u_val, u_std), (xu, y_at_std_top(u_val, u_std)), xytext=(0, TOP_DY + 10),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
             ax.annotate(fmt_mean_with_error(n_val, n_std), (xn, y_at_std_top(n_val, n_std)), xytext=(0, TOP_DY - 2),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
@@ -360,7 +360,7 @@ def draw_plot(ax):
             ax.annotate(f"{c_sub:.3f}", (xc, c_sub), xytext=(0, -10), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
             ax.annotate(fmt_mean_with_error(u_exe, u_exe_std), (xu, y_at_std_top(u_exe, u_exe_std)), xytext=(0, TOP_DY + 10),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
-            ax.annotate(f"{u_sub:.3f}", (xu, u_sub), xytext=(0, -50), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
+            ax.annotate(f"{u_sub:.3f}", (xu, u_sub), xytext=(0, -30), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
             ax.annotate(fmt_mean_with_error(n_exe, n_exe_std), (xn, y_at_std_top(n_exe, n_exe_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
             ax.annotate(f"{n_sub:.3f}", (xn, n_sub), xytext=(0, 0), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
@@ -378,7 +378,12 @@ def draw_plot(ax):
     handles, lbls = ax.get_legend_handles_labels()
     if "±1σ (std)" not in lbls:
         handles.append(err_proxy); lbls.append("±1σ (std)")
-    ax.legend(handles, lbls, loc="upper left", bbox_to_anchor=(1, 1), title=f"{gpu_name} GPU\n───────────", title_fontsize=20)
+    leg = ax.legend(handles, lbls, loc="upper right", title=f"{gpu_name} GPU\n───────────────", title_fontsize=20)
+
+    leg.get_title().set_color("black")
+    leg.get_title().set_bbox(dict(facecolor="#f9d6da",
+                                edgecolor="none",
+                                boxstyle="round,pad=0.3"))
 
 def make_variant(scale="linear", ylim=None, suffix="linear"):
     fig, ax = plt.subplots(figsize=(22, 10), constrained_layout=True)
