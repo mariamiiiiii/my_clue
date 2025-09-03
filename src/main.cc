@@ -266,7 +266,7 @@ void mainRun(const std::string &inputFileName,
 
     begin = std::chrono::high_resolution_clock::now();
 
-    clueAlgo.init_input_data();
+    clueAlgo.init_input_data(false);
 
     clueAlgo.Sync();
 
@@ -301,7 +301,7 @@ void mainRun(const std::string &inputFileName,
         exit(EXIT_FAILURE);
       clueAlgo.Sync();
       auto start = std::chrono::high_resolution_clock::now();
-      clueAlgo.copy_todevice();
+      clueAlgo.copy_todevice(true);
       auto finish = std::chrono::high_resolution_clock::now();
       clueAlgo.Sync();
       auto finish2 = std::chrono::high_resolution_clock::now();
@@ -315,7 +315,7 @@ void mainRun(const std::string &inputFileName,
       std::chrono::duration<float> submit_make_clusters = finish - start;
       std::chrono::duration<float> execute_make_clusters = finish2 - start;
       start = std::chrono::high_resolution_clock::now();
-      clueAlgo.copy_tohost();
+      clueAlgo.copy_tohost(true);
       finish = std::chrono::high_resolution_clock::now();
       clueAlgo.Sync();
       finish2 = std::chrono::high_resolution_clock::now();
@@ -425,7 +425,7 @@ void mainRun(const std::string &inputFileName,
   }
 
   std::string run_number = argv[13];
-  std::string filename = "Results/results_classic" + run_number + ".csv";
+  std::string filename = "Results/results_unified" + run_number + ".csv";
 
   std::ofstream results(filename);
   if (!results.is_open()) {
