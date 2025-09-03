@@ -169,9 +169,14 @@ std::string create_outputfileName(const std::string &inputFileName,
 }
 
 void mainRun(const std::string &inputFileName,
-             const std::string &outputFileName, const float dc,
-             const float rhoc, const float outlierDeltaFactor,
-             const bool use_accelerator, const int repeats,
+             const std::string &outputFileName,
+             const float dc,
+             const float rhoc,
+             const float outlierDeltaFactor,
+             const bool use_accelerator, 
+             const bool prefetch,
+             const int repeats,
+             const std::string &label,
              const bool verbose, char* argv[]) {
 
   CHECK_CUDA_ERROR(cudaFree(nullptr));
@@ -246,7 +251,8 @@ void mainRun(const std::string &inputFileName,
 
     begin = std::chrono::high_resolution_clock::now();
 
-    clueAlgo.init_input_data(false);
+    const bool memadvise = false;
+    clueAlgo.init_input_data(memadvise);
 
     clueAlgo.Sync();
 
@@ -282,9 +288,9 @@ void mainRun(const std::string &inputFileName,
       // measure excution time of makeClusters
       clueAlgo.Sync();
       auto start = std::chrono::high_resolution_clock::now();
-      clueAlgo.copy_todevice(true);
+      clueAlgo.copy_todevice(prefetch);
       clueAlgo.makeClusters();
-      clueAlgo.copy_tohost(true);
+      clueAlgo.copy_tohost(prefetch);
       auto finish = std::chrono::high_resolution_clock::now();
       clueAlgo.Sync();
       auto finish2 = std::chrono::high_resolution_clock::now();
@@ -381,8 +387,7 @@ void mainRun(const std::string &inputFileName,
       clueAlgo.verboseResults(outputFileName, -1);
   }
 
-  std::string run_number = argv[13];
-  std::string filename = "Results/results_unified" + run_number + ".csv";
+  std::string filename = "Results/results_unified" + label + ".csv";
 
   std::ofstream results(filename);
   if (!results.is_open()) {
@@ -409,16 +414,21 @@ int main(int argc, char *argv[]) {
 
   bool use_accelerator = false;
   bool verbose = false;
+  bool prefetch = false;
   float dc = 20.f, rhoc = 80.f, outlierDeltaFactor = 2.f;
   int repeats = 100;
+  std::string label = "";
   int TBBNumberOfThread = 1;
   int opt;
   std::string inputFileName;
 
-  while ((opt = getopt(argc, argv, "i:d:r:o:e:t:uv")) != -1) {
+  while ((opt = getopt(argc, argv, "i:d:r:l:o:pe:t:uv")) != -1) {
     switch (opt) {
     case 'i': /* input filename */
       inputFileName = string(optarg);
+      break;
+    case 'l': /* output label */
+      label = std::string(optarg);
       break;
     case 'd': /* delta_c */
       dc = stof(string(optarg));
@@ -428,6 +438,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'o': /* outlier factor */
       outlierDeltaFactor = stof(string(optarg));
+      break;
+    case 'p': /* prefetch */
+      prefetch = true;
       break;
     case 'e': /* number of repeated session(s) a the selected input file */
       repeats = stoi(string(optarg));
@@ -446,10 +459,14 @@ int main(int argc, char *argv[]) {
     default:
       std::cout << "bin/main -i [fileName] -d [dc] -r [rhoc] -o "
                    "[outlierDeltaFactor] -e [repeats] -t "
-                   "[NumTBBThreads] -u -v"
+                   "[NumTBBThreads] [-p] [-l N] -u -v"
                 << std::endl;
       exit(EXIT_FAILURE);
     }
+  }
+
+  if (not prefetch) {
+    label = "_no_prefetch" + label;
   }
 
 #ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_ENABLED
@@ -474,7 +491,7 @@ int main(int argc, char *argv[]) {
   // MARK -- test run
   //////////////////////////////
   mainRun(inputFileName, outputFileName, dc, rhoc, outlierDeltaFactor,
-          use_accelerator, repeats, verbose, argv);
+          use_accelerator, prefetch, repeats, label, verbose, argv);
 
   return 0;
 }
