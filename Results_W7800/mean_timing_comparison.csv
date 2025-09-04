@@ -1,0 +1,9 @@
+Operation,Time_Classic,Time_Unified,Time_NoPrefetch
+readDataFromFile,34.35365,34.71634,34.80606
+allocateInputData,0.202088,2.762746,2.678483
+allocateOutputData,2.0394010000000002,4.68886,4.64133
+SubmissionMakeClusters,11.06237,32.156,0.21810999999999997
+ExecutionMakeClusters,11.06342,54.688509999999994,61.32598
+writeDataToFile,75.69253,68.88668,68.8338
+freeInputData,2.648083,2.779998,2.461204
+freeOutputData,0.5724196,1.225236,0.8881945
