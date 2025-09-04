@@ -13,7 +13,7 @@ import math
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
-results = 'Results'
+results = "Results"
 if len(sys.argv) > 1:
     results = sys.argv[1]
 
@@ -146,7 +146,7 @@ merged_std = merged_std.merge(
 # Save for plotting
 merged_mean.to_csv(f"{results}/mean_timing_comparison.csv", index=False)
 
-gpu_name = results.replace("Results_", "")
+gpu_name = results.replace("Results_", "").replace("_", " ")
 
 # === plotting (refactored to avoid repetition) ===
 
@@ -249,16 +249,16 @@ def get_std(op, col):
 # X-axis order
 SIMPLE_OPS = [
     ("readDataFromFile", "Read input file"),
-    ("allocateInputData", "Allocate input"),
-    ("allocateOutputData", "Allocate output"),
+    ("allocateInputData", "Allocate input\nmemory"),
+    ("allocateOutputData", "Allocate output\nmemory"),
     ("writeDataToFile", "Write output file"),
-    ("freeInputData", "Free input"),
-    ("freeOutputData", "Free output")
+    ("freeInputData", "Free input\nmemory"),
+    ("freeOutputData", "Free output\nmemory")
 ]
 
-STACK_OPS  = [("CopyToDevice", "Copy to device/Prefetch"),
+STACK_OPS  = [("CopyToDevice", "Copy or Prefetch\nto device"),
               ("MakeClusters", "Kernels"),
-              ("CopyToHost",   "Copy to host/Prefetch")]
+              ("CopyToHost",   "Copy or Prefetch\nto host")]
 
 groups_all = []
 for key, pretty in SIMPLE_OPS[:3]: groups_all.append(("simple", key, pretty))
@@ -294,9 +294,9 @@ unified_exec = "#f89c20"; unified_sub  = "#7a4d10"
 nopref_exec  = "#e42536"; nopref_sub   = "#780f1c"
 c_err = "#2f5597"; u_err = "#a15c00"; n_err = "#b31d2b"
 
-lbl_c_sub = "Classic-submission";   lbl_c_exe = "Classic-execution"
-lbl_u_sub = "Unified-submission";   lbl_u_exe = "Unified-execution"
-lbl_n_sub = "NoPrefetch-submission";lbl_n_exe = "NoPrefetch-execution"
+lbl_c_sub = "Classic: submission";   lbl_c_exe = "Classic: execution"
+lbl_u_sub = "Unified: submission";   lbl_u_exe = "Unified: execution"
+lbl_n_sub = "w/o prefetch: submission";lbl_n_exe = "w/o prefetch: execution"
 
 def draw_plot(ax):
     used_labels = set()
@@ -365,20 +365,20 @@ def draw_plot(ax):
 
             ax.annotate(fmt_mean_with_error(c_exe, c_exe_std), (xc, y_at_std_top(c_exe, c_exe_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
-            ax.annotate(f"{c_sub:.3f}", (xc, c_sub), xytext=(0, -20), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
+            ax.annotate(f"{c_sub:.3f}", (xc, c_sub), xytext=(0, -10), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
             ax.annotate(fmt_mean_with_error(u_exe, u_exe_std), (xu, y_at_std_top(u_exe, u_exe_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
-            ax.annotate(f"{u_sub:.3f}", (xu, u_sub), xytext=(0, 0), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
+            ax.annotate(f"{u_sub:.3f}", (xu, u_sub), xytext=(0, -50), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
             ax.annotate(fmt_mean_with_error(n_exe, n_exe_std), (xn, y_at_std_top(n_exe, n_exe_std)), xytext=(0, TOP_DY),
                         textcoords="offset points", ha="center", va="bottom", fontsize=FS_TOP)
-            ax.annotate(f"{n_sub:.3f}", (xn, n_sub/2), xytext=(0, 0), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
+            ax.annotate(f"{n_sub:.3f}", (xn, n_sub/2), xytext=(0, -30), textcoords="offset points", ha="center", va="center", fontsize=FS_TOP, color="white", bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="none", alpha=0.7))
 
     labels = [pretty for _,_,pretty in groups]
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=10, ha="center", rotation_mode="anchor")
     ax.tick_params(axis="x", pad=20) 
     ax.set_ylabel("Time (ms)")
-    ax.set_title("Classic vs Unified (Prefetch / No Prefetch)")
+    ax.set_title("Classic vs Unified (with prefetch / without prefetch)")
     ax.grid(axis="y", linestyle="--", alpha=0.6)
 
     from matplotlib.lines import Line2D
