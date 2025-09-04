@@ -1,0 +1,13 @@
+Operation,Time
+readDataFromFile,44.5716
+allocateInputData,0.271194
+allocateOutputData,1.58156
+SubmissionCopyToDevice,0.0106967
+ExecutionCopyToDevice,0.0997365
+SubmissionMakeClusters,0.0342028
+ExecutionMakeClusters,19.9761
+SubmissionCopyToHost,0.173882
+ExecutionCopyToHost,0.186869
+writeDataToFile,107.323
+freeInputData,0.476472
+freeOutputData,0.037433

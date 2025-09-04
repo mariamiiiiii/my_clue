@@ -1,9 +1,0 @@
-Operation,Time
-readDataFromFile,38.5644
-allocateInputData,0.727187
-allocateOutputData,2.93518
-kernelSubmission,0.744297
-kernelExecution,0.745409
-writeDataToFile,99.5658
-freeInputData,0.060293
-freeOutputData,0.103805
