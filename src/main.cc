@@ -14,7 +14,7 @@
 #if defined(USE_ALPAKA)
 #include "CLUEAlgoAlpaka.h"
 #else
-#include "CLUEAlgoGPU.h"
+#include "CLUEAlgoGPUHip.h"
 #endif
 
 #ifdef ALPAKA_ACC_CPU_B_TBB_T_SEQ_ENABLED
@@ -121,10 +121,10 @@ void readDataFromFile(const std::string &inputFileName, std::vector<float> &x,
 
 void hostRegisterData(std::vector<float> &x, std::vector<float> &y, 
                       std::vector<int> &layer, std::vector<float> &weight) {
-  CHECK_CUDA_ERROR(cudaHostRegister(x.data(), x.size() * sizeof(float), cudaHostRegisterPortable | cudaHostRegisterMapped));
-  CHECK_CUDA_ERROR(cudaHostRegister(y.data(), y.size() * sizeof(float), cudaHostRegisterPortable | cudaHostRegisterMapped));
-  CHECK_CUDA_ERROR(cudaHostRegister(layer.data(), layer.size() * sizeof(int), cudaHostRegisterPortable | cudaHostRegisterMapped));
-  CHECK_CUDA_ERROR(cudaHostRegister(weight.data(), weight.size() * sizeof(float), cudaHostRegisterPortable | cudaHostRegisterMapped));
+  CHECK_HIP_ERROR(hipHostRegister(x.data(), x.size() * sizeof(float), hipHostRegisterPortable | hipHostRegisterMapped));
+  CHECK_HIP_ERROR(hipHostRegister(y.data(), y.size() * sizeof(float), hipHostRegisterPortable | hipHostRegisterMapped));
+  CHECK_HIP_ERROR(hipHostRegister(layer.data(), layer.size() * sizeof(int), hipHostRegisterPortable | hipHostRegisterMapped));
+  CHECK_HIP_ERROR(hipHostRegister(weight.data(), weight.size() * sizeof(float), hipHostRegisterPortable | hipHostRegisterMapped));
 }
 
 void freeInputData(std::vector<float> &x, std::vector<float> &y,
@@ -179,7 +179,7 @@ void mainRun(const std::string &inputFileName,
              const std::string &label,
              const bool verbose, char* argv[]) {
 
-  CHECK_CUDA_ERROR(cudaFree(nullptr));
+  CHECK_HIP_ERROR(hipFree(nullptr));
 
   //////////////////////////////
   // read toy data from csv file
@@ -243,7 +243,7 @@ void mainRun(const std::string &inputFileName,
   std::cout << "Start to run CLUE algorithm" << std::endl;
   if (use_accelerator) {
 #if !defined(USE_ALPAKA)
-    std::cout << "Native CUDA Backend selected" << std::endl;
+    std::cout << "Native HIP Backend selected" << std::endl;
     CLUEAlgoGPU<TilesConstants, NLAYERS> clueAlgo(dc, rhoc, outlierDeltaFactor,
                                                   verbose);
     vals.clear();
