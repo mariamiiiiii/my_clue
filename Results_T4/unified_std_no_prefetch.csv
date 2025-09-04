@@ -1,0 +1,9 @@
+Operation,Time
+readDataFromFile,0.1795352518773588
+allocateInputData,0.01563163902687964
+allocateOutputData,0.16582858207263979
+SubmissionMakeClusters,0.012837628761660788
+ExecutionMakeClusters,0.04103157732500425
+writeDataToFile,16.49180962919002
+freeInputData,0.09723977753985248
+freeOutputData,0.06011816700844726
